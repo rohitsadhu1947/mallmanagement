@@ -66,13 +66,17 @@ async function seed() {
     state: "Haryana",
     country: "India",
     pincode: "122001",
-    totalArea: "250000",
-    leasableArea: "180000",
+    totalAreaSqft: "250000",
+    leasableAreaSqft: "180000",
     floors: 4,
-    parkingSpaces: 500,
     status: "active",
-    settings: {
-      operatingHours: "10:00-22:00",
+    operatingHours: {
+      weekdays: "10:00-22:00",
+      weekends: "10:00-23:00",
+    },
+    amenities: ["Parking", "Food Court", "Multiplex", "Kids Zone"],
+    metadata: {
+      parkingSpaces: 500,
       maintenanceDay: "Monday",
     },
   })
