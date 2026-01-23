@@ -80,22 +80,19 @@ export async function POST(request: NextRequest) {
     const validatedData = createComplianceSchema.parse(body)
 
     const newRequirement = await db.insert(complianceRequirements).values({
-      id: crypto.randomUUID(),
       propertyId: validatedData.propertyId,
       requirementType: validatedData.requirementType,
       title: validatedData.title,
       description: validatedData.description || null,
       authority: validatedData.authority || null,
       frequency: validatedData.frequency || null,
-      dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
-      nextDueDate: validatedData.nextDueDate ? new Date(validatedData.nextDueDate) : null,
+      dueDate: validatedData.dueDate || null,
+      nextDueDate: validatedData.nextDueDate || null,
       status: validatedData.status,
       riskLevel: validatedData.riskLevel,
       autoReminder: validatedData.autoReminder,
       reminderDays: validatedData.reminderDays,
       documentsRequired: validatedData.documentsRequired,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     }).returning()
 
     return NextResponse.json(newRequirement[0], { status: 201 })

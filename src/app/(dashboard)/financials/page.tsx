@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -106,7 +107,7 @@ const invoiceTypeLabels: Record<string, string> = {
   other: "Other",
 }
 
-export default function FinancialsPage() {
+function FinancialsPageContent() {
   const { toast } = useToast()
   const searchParams = useSearchParams()
   const tenantIdFilter = searchParams.get("tenantId")
@@ -968,5 +969,14 @@ export default function FinancialsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+// Wrap with Suspense for useSearchParams
+export default function FinancialsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <FinancialsPageContent />
+    </Suspense>
   )
 }

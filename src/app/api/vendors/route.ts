@@ -40,20 +40,16 @@ export async function GET(request: NextRequest) {
     const organizationId = searchParams.get("organizationId") || session.user.organizationId
     const category = searchParams.get("category")
     const status = searchParams.get("status")
-
-    if (!organizationId) {
-      return NextResponse.json({ error: "Organization ID is required" }, { status: 400 })
-    }
+    const type = searchParams.get("type")
 
     const allVendors = await db.query.vendors.findMany({
-      where: eq(vendors.organizationId, organizationId),
       orderBy: (table, { desc }) => [desc(table.createdAt)],
     })
 
     // Filter on application level
     let filtered = allVendors
-    if (category) {
-      filtered = filtered.filter(v => v.category === category)
+    if (type) {
+      filtered = filtered.filter(v => v.type === type)
     }
     if (status) {
       filtered = filtered.filter(v => v.status === status)
@@ -82,27 +78,24 @@ export async function POST(request: NextRequest) {
     const validatedData = createVendorSchema.parse(body)
 
     const newVendor = await db.insert(vendors).values({
-      id: crypto.randomUUID(),
-      organizationId: session.user.organizationId!,
       name: validatedData.name,
-      category: validatedData.category,
+      type: validatedData.category || null,
       contactPerson: validatedData.contactPerson || null,
       email: validatedData.email || null,
       phone: validatedData.phone || null,
       address: validatedData.address || null,
-      gstNumber: validatedData.gstNumber || null,
-      panNumber: validatedData.panNumber || null,
-      bankDetails: validatedData.bankDetails || null,
-      performanceRating: 0,
-      totalWorkOrders: 0,
-      completedWorkOrders: 0,
-      avgResponseTime: null,
-      avgCompletionTime: null,
-      totalAmountPaid: 0,
-      status: "pending",
-      contractExpiry: validatedData.contractExpiry ? new Date(validatedData.contractExpiry) : null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      gstin: validatedData.gstNumber || null,
+      pan: validatedData.panNumber || null,
+      rating: "0",
+      performanceScore: "0",
+      totalJobs: 0,
+      completedJobs: 0,
+      cancelledJobs: 0,
+      status: "active",
+      metadata: {
+        bankDetails: validatedData.bankDetails || null,
+        contractExpiry: validatedData.contractExpiry || null,
+      },
     }).returning()
 
     return NextResponse.json(newVendor[0], { status: 201 })

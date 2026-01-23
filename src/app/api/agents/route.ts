@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         )`,
       })
       .from(agents)
-      .where(eq(agents.isActive, true))
+      .where(eq(agents.status, "active"))
       .orderBy(agents.name)
 
     // Calculate success rate for each agent
@@ -95,13 +95,13 @@ export async function POST(request: NextRequest) {
         id: action.id,
         agentId: action.agentId,
         agentName: agent?.name || "Unknown Agent",
-        agentType: agent?.persona || "unknown",
+        agentType: agent?.type || "unknown",
         actionType: action.actionType,
-        description: action.description,
+        description: action.trigger || action.reasoning || "No description",
         reasoning: action.reasoning,
         confidence: parseFloat(action.confidence || "0"),
         status: action.status,
-        impact: action.impact || "medium",
+        impact: (action.metadata as Record<string, unknown>)?.impact as string || "medium",
         entityType: action.entityType,
         entityId: action.entityId,
         createdAt: action.createdAt,

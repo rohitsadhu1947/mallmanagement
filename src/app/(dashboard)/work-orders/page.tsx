@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -116,7 +117,7 @@ const statusConfig: Record<string, { color: string; label: string; icon: React.R
   escalated: { color: "bg-red-100 text-red-700", label: "Escalated", icon: <AlertCircle className="h-3 w-3" /> },
 }
 
-export default function WorkOrdersPage() {
+function WorkOrdersPageContent() {
   const { toast } = useToast()
   const searchParams = useSearchParams()
   const tenantIdFilter = searchParams.get("tenantId")
@@ -885,5 +886,14 @@ export default function WorkOrdersPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+// Wrap with Suspense for useSearchParams
+export default function WorkOrdersPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <WorkOrdersPageContent />
+    </Suspense>
   )
 }

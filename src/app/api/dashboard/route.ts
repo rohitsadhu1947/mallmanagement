@@ -62,8 +62,10 @@ export async function GET(request: NextRequest) {
 
 async function fetchDashboardMetrics(propertyId?: string) {
   const today = new Date()
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+  const startOfMonthDate = new Date(today.getFullYear(), today.getMonth(), 1)
+  const endOfMonthDate = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+  const startOfMonth = startOfMonthDate.toISOString().split("T")[0]
+  const endOfMonth = endOfMonthDate.toISOString().split("T")[0]
 
   // Fetch all metrics in parallel
   const [
@@ -79,11 +81,11 @@ async function fetchDashboardMetrics(propertyId?: string) {
     propertyId 
       ? db.select({ 
           count: count(),
-          totalArea: sum(properties.totalArea)
+          totalArea: sum(properties.totalAreaSqft)
         }).from(properties).where(eq(properties.id, propertyId))
       : db.select({ 
           count: count(),
-          totalArea: sum(properties.totalArea)
+          totalArea: sum(properties.totalAreaSqft)
         }).from(properties),
 
     // Tenant statistics
@@ -202,14 +204,14 @@ async function fetchDashboardMetrics(propertyId?: string) {
     trends: {
       dailyMetrics: recentMetrics.map(m => ({
         date: m.metricDate,
-        footfall: Number(m.footfall || 0),
-        revenue: Number(m.totalRevenue || 0),
+        footfall: Number(m.footTraffic || 0),
+        revenue: Number(m.revenue || 0),
         occupancy: Number(m.occupancyRate || 0),
       })),
     },
     recentActivities: recentActivities.map(a => ({
       id: a.id,
-      agentType: a.agentType,
+      agentId: a.agentId,
       actionType: a.actionType,
       status: a.status,
       createdAt: a.createdAt,

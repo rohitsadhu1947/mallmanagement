@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
 import { users } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
+import type { UserRole } from "./index"
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -64,7 +65,7 @@ export const authConfig: NextAuthConfig = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        session.user.role = token.role as string
+        session.user.role = token.role as UserRole
         session.user.organizationId = token.organizationId as string
       }
       return session

@@ -117,7 +117,6 @@ export async function POST(request: NextRequest) {
       .padStart(4, "0")}`
 
     await db.insert(workOrders).values({
-      id: workOrderId,
       propertyId,
       tenantId,
       workOrderNumber,
@@ -127,8 +126,7 @@ export async function POST(request: NextRequest) {
       description,
       location,
       status: "open",
-      reportedBy: session.user.id,
-      reportedAt: new Date(),
+      createdBy: session.user.id,
     })
 
     const newWorkOrder = await db.query.workOrders.findFirst({

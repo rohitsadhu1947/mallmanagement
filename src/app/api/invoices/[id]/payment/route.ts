@@ -40,20 +40,19 @@ export async function POST(
     }
 
     // Create payment record
-    const paymentId = crypto.randomUUID()
     const receiptNumber = `RCP-${new Date().getFullYear()}-${Math.floor(Math.random() * 100000).toString().padStart(6, "0")}`
 
     await db.insert(payments).values({
-      id: paymentId,
       invoiceId: params.id,
       amount: amount.toString(),
-      paymentDate: new Date(paymentDate),
+      paymentDate: paymentDate,
       paymentMethod: paymentMethod || "bank_transfer",
       referenceNumber,
-      receiptNumber,
-      status: "completed",
-      processedBy: session.user.id,
       notes,
+      metadata: {
+        receiptNumber,
+        processedBy: session.user.id,
+      },
     })
 
     // Calculate total paid amount
@@ -68,9 +67,8 @@ export async function POST(
       .update(invoices)
       .set({
         paidAmount: newPaid.toString(),
-        paidDate: new Date(paymentDate),
+        paidDate: paymentDate,
         status: newStatus,
-        updatedAt: new Date(),
       })
       .where(eq(invoices.id, params.id))
 

@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { db } from "@/lib/db"
-import { agentActions, agentDecisions, agentLearning, agents } from "@/lib/db/schema"
+import { agentActions, agentDecisions, agents } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import type {
   AgentConfig,
@@ -101,8 +101,8 @@ export class AgentOrchestrator {
 
       response = await anthropic.messages.create({
         model: agent.model || this.config.defaultModel,
-        max_tokens: agent.settings.maxTokens,
-        temperature: agent.settings.temperature,
+        max_tokens: agent.settings?.maxTokens || 4096,
+        temperature: agent.settings?.temperature || 0.7,
         system: agent.systemPrompt,
         tools: anthropicTools,
         messages,
@@ -211,12 +211,12 @@ export class AgentOrchestrator {
     toolCalls: ToolCall[]
   ): boolean {
     // Low confidence requires approval
-    if (confidence < agent.settings.confidenceThreshold) {
+    if (confidence < (agent.settings?.confidenceThreshold || this.config.confidenceThreshold)) {
       return true
     }
 
     // Check if any tool call requires approval
-    const requiresApprovalActions = agent.settings.requiresApprovalActions || []
+    const requiresApprovalActions = agent.settings?.requiresApprovalActions || []
     for (const call of toolCalls) {
       if (requiresApprovalActions.includes(call.name)) {
         return true
@@ -248,18 +248,19 @@ export class AgentOrchestrator {
     context: AgentContext
   ) {
     await db.insert(agentDecisions).values({
-      id: decision.id,
       agentId: agent.id,
-      propertyId: context.propertyId,
-      action: decision.action,
+      decisionType: decision.action,
+      context: context,
       reasoning: decision.reasoning,
+      recommendation: decision.data,
       confidence: decision.confidence.toString(),
-      requiresApproval: decision.requiresApproval,
-      status: decision.requiresApproval ? "pending" : "auto_approved",
-      inputData: context.triggerData,
-      outputData: decision.data,
       alternatives: decision.alternatives,
-      metadata: decision.metadata,
+      outcome: decision.requiresApproval ? "pending" : "accepted",
+      metadata: {
+        ...decision.metadata,
+        propertyId: context.propertyId,
+        requiresApproval: decision.requiresApproval,
+      },
     })
 
     // Also create an action record for tracking
@@ -280,9 +281,8 @@ export class AgentOrchestrator {
     await db
       .update(agentDecisions)
       .set({
-        status: "approved",
-        approvedBy: userId,
-        approvedAt: new Date(),
+        outcome: "accepted",
+        humanFeedback: `Approved by ${userId} at ${new Date().toISOString()}`,
       })
       .where(eq(agentDecisions.id, decisionId))
   }
@@ -291,9 +291,8 @@ export class AgentOrchestrator {
     await db
       .update(agentDecisions)
       .set({
-        status: "rejected",
-        approvedBy: userId,
-        approvedAt: new Date(),
+        outcome: "rejected",
+        humanFeedback: `Rejected by ${userId} at ${new Date().toISOString()}${reason ? `: ${reason}` : ""}`,
         metadata: { rejectionReason: reason },
       })
       .where(eq(agentDecisions.id, decisionId))
@@ -306,15 +305,8 @@ export class AgentOrchestrator {
     pattern: Record<string, unknown>,
     outcome: Record<string, unknown>
   ): Promise<void> {
-    await db.insert(agentLearning).values({
-      id: crypto.randomUUID(),
-      agentId,
-      propertyId,
-      learningType,
-      pattern,
-      outcome,
-      appliedCount: 0,
-    })
+    // TODO: Implement agent learning storage when agentLearning table is added
+    console.log("Agent learning recorded:", { agentId, propertyId, learningType, pattern, outcome })
   }
 
   // Helper to convert Zod schema to JSON Schema (simplified)
@@ -343,4 +335,51 @@ export class AgentOrchestrator {
 
 // Singleton instance
 export const orchestrator = new AgentOrchestrator()
+
+// Response type for agent processing
+interface AgentProcessResponse {
+  agentId?: string
+  message: string
+  confidence: number
+  reasoning?: string[]
+  observations?: string[]
+  toolResults?: ToolResult[]
+  toolsUsed?: (string | { name: string; params?: Record<string, unknown>; result?: ToolResult })[]
+  requiresApproval?: boolean
+  requiresHumanApproval?: boolean
+  suggestedActions?: string[]
+  metadata?: Record<string, unknown>
+  actions?: unknown[]
+  processingTime?: number
+}
+
+// Base class for individual agent implementations
+export abstract class BaseAgent {
+  protected config: AgentConfig
+  
+  constructor(config: AgentConfig) {
+    this.config = config
+  }
+  
+  abstract process(input: string, context: AgentContext): Promise<AgentProcessResponse>
+  
+  protected async executeTool(
+    toolName: string,
+    params: Record<string, unknown>,
+    context: AgentContext
+  ): Promise<ToolResult> {
+    const tool = this.config.tools.find(t => t.name === toolName)
+    if (!tool) {
+      return { success: false, error: `Tool ${toolName} not found` }
+    }
+    try {
+      return await tool.handler(params, context)
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Tool execution failed" 
+      }
+    }
+  }
+}
 

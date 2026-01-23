@@ -67,8 +67,9 @@ export async function GET(
 
     // Calculate occupancy rate (active tenants / total capacity estimate)
     // For now, we'll use a simple calculation based on leasable area
-    const occupancyRate = latestMetric?.occupancyRate || 
-      (property.leasableAreaSqft ? Math.min(95, (tenantCount * 1500 / Number(property.leasableAreaSqft)) * 100) : 0)
+    const occupancyRate = latestMetric?.occupancyRate 
+      ? Number(latestMetric.occupancyRate)
+      : (property.leasableAreaSqft ? Math.min(95, (tenantCount * 1500 / Number(property.leasableAreaSqft)) * 100) : 0)
 
     // Format the response
     const propertyDetails = {
@@ -100,7 +101,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { authorized, error } = await requirePermission(PERMISSIONS.PROPERTIES_UPDATE)
+    const { authorized, error } = await requirePermission(PERMISSIONS.PROPERTIES_EDIT)
     if (!authorized) {
       return NextResponse.json({ error }, { status: 403 })
     }

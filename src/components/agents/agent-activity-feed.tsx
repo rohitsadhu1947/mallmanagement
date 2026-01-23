@@ -8,14 +8,14 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { AgentActivityCard } from "./agent-activity-card"
 import { Bot, RefreshCw, Filter, Wifi, WifiOff } from "lucide-react"
 import { useAgentActivity, type AgentActivity } from "@/hooks/use-agent-activity"
-import type { AgentAction, AgentPersona } from "@/types/agents"
+import type { AgentAction, AgentType } from "@/types/agents"
 
 // Map SSE activities to AgentAction format
 function mapActivityToAction(activity: AgentActivity): AgentAction {
   return {
     id: activity.id,
     agentId: activity.agentId,
-    agentType: activity.agentPersona as AgentPersona,
+    agentType: (activity.agentPersona || "operations_commander") as AgentType,
     agentName: activity.agentName,
     actionType: activity.actionType,
     entityType: activity.actionType.includes("work_order") ? "work_order" : 

@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
         id: newConversationId,
         propertyId,
         tenantId: tenantId || null,
-        agentType: "tenant_relations",
-        status: "open",
-        subject: message.slice(0, 100),
+        assignedAgent: "tenant_relations",
+        status: "active",
+        category: message.slice(0, 100),
       })
       conversation = await db.query.conversations.findFirst({
         where: eq(conversations.id, newConversationId),
@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
     await db.insert(messages).values({
       id: userMessageId,
       conversationId: conversation.id,
-      role: "user",
+      senderType: tenantId ? "tenant" : "staff",
+      senderId: tenantId || session.user.id,
       content: message,
     })
 
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
       .orderBy(messages.createdAt)
 
     const conversationHistory = history.map((msg) => ({
-      role: msg.role as "user" | "assistant",
+      role: (msg.senderType === "agent" ? "assistant" : "user") as "user" | "assistant",
       content: msg.content,
       timestamp: msg.createdAt,
     }))
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
     await db.insert(messages).values({
       id: assistantMessageId,
       conversationId: conversation.id,
-      role: "assistant",
+      senderType: "agent",
       content: result.response,
       metadata: {
         confidence: result.confidence,
@@ -101,7 +102,6 @@ export async function POST(request: NextRequest) {
       .update(conversations)
       .set({
         updatedAt: new Date(),
-        lastMessageAt: new Date(),
       })
       .where(eq(conversations.id, conversation.id))
 

@@ -179,10 +179,11 @@ export function AgentActivityCard({
                   metrics: "/analytics",
                   lease: "/tenants",
                 }
-                window.location.href = routes[action.entityType] || "/dashboard"
+                const entityType = action.entityType || "unknown"
+                window.location.href = routes[entityType] || "/dashboard"
               }}
             >
-              View {action.entityType.replace("_", " ")}
+              View {(action.entityType || "entity").replace("_", " ")}
               <ChevronRight className="h-3 w-3" />
             </Button>
           )}

@@ -78,8 +78,7 @@ export async function POST(
       .update(invoices)
       .set({
         remindersSent: sql`${invoices.remindersSent} + 1`,
-        lastReminderAt: new Date(),
-        updatedAt: new Date(),
+        lastReminderDate: new Date().toISOString().split("T")[0],
       })
       .where(eq(invoices.id, params.id))
 

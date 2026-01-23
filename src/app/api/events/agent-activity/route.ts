@@ -69,9 +69,9 @@ export async function GET(request: NextRequest) {
                 id: a.action.id,
                 agentId: a.action.agentId,
                 agentName: a.agent?.name || "Unknown Agent",
-                agentPersona: a.agent?.persona,
+                agentPersona: a.agent?.type,
                 actionType: a.action.actionType,
-                description: a.action.description,
+                description: a.action.trigger || a.action.reasoning || "No description",
                 status: a.action.status,
                 confidence: a.action.confidence,
                 timestamp: a.action.createdAt,
@@ -81,12 +81,12 @@ export async function GET(request: NextRequest) {
               for (const activity of activities) {
                 await pushAgentActivity(propertyId || "all", {
                   id: activity.id,
-                  agentId: activity.agentId,
+                  agentId: activity.agentId || "unknown",
                   agentName: activity.agentName,
                   actionType: activity.actionType,
-                  description: activity.description,
+                  description: activity.description || "No description",
                   timestamp: new Date(activity.timestamp as string | Date),
-                  status: activity.status,
+                  status: activity.status || "unknown",
                 })
               }
               

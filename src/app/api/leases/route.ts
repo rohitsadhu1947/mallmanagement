@@ -155,14 +155,15 @@ export async function POST(request: NextRequest) {
         revenueSharePercentage: revenueSharePercentage?.toString() || null,
         camCharges: camCharges?.toString() || null,
         securityDeposit: securityDeposit?.toString() || null,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        escalationRate: escalationRate?.toString() || null,
-        escalationFrequency: escalationFrequency || null,
+        startDate: startDate,
+        endDate: endDate,
+        rentEscalationPercentage: escalationRate?.toString() || null,
+        escalationFrequencyMonths: escalationFrequency || null,
+        lockInPeriodMonths: lockInPeriod || null,
+        noticePeriodMonths: terminationNoticeDays ? Math.ceil(terminationNoticeDays / 30) : null,
         status,
-        // Store additional fields in terms JSON
-        terms: {
-          lockInPeriod: lockInPeriod || null,
+        // Store additional fields in metadata JSON
+        metadata: {
           fitOutPeriod: fitOutPeriod || null,
           rentFreePeriod: rentFreePeriod || null,
           terminationNoticeDays: terminationNoticeDays || 90,

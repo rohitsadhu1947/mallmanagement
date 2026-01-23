@@ -11,11 +11,16 @@ export type AgentType =
 export interface AgentConfig {
   id: string
   name: string
-  type: AgentType
-  model: string
+  type?: AgentType
+  persona?: string
+  description?: string
+  capabilities?: string[]
+  model?: string
   systemPrompt: string
   tools: Tool[]
-  settings: AgentSettings
+  settings?: AgentSettings
+  maxIterations?: number
+  confidenceThreshold?: number
 }
 
 export interface AgentSettings {
@@ -89,6 +94,7 @@ export interface ToolResult {
   success: boolean
   data?: unknown
   error?: string
+  toolName?: string
 }
 
 export interface AgentAction {
@@ -110,6 +116,28 @@ export interface AgentAction {
   result?: Record<string, unknown>
   error?: string
   createdAt: Date
+}
+
+export interface AgentResponse {
+  agentId?: string
+  message: string
+  confidence: number
+  reasoning?: string[]
+  observations?: string[]
+  toolResults?: ToolResult[]
+  toolsUsed?: (string | { name: string; params?: Record<string, unknown>; result?: ToolResult })[]
+  requiresApproval?: boolean
+  requiresHumanApproval?: boolean
+  suggestedActions?: string[]
+  metadata?: Record<string, unknown>
+  actions?: unknown[]
+  processingTime?: number
+}
+
+export interface AgentMessage {
+  role: "user" | "assistant" | "system"
+  content: string
+  timestamp?: Date
 }
 
 export const AGENT_INFO: Record<AgentType, { name: string; color: string; bgClass: string }> = {

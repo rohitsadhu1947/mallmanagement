@@ -1,10 +1,16 @@
 // Agent Implementations
-export { tenantRelationsAgent, TenantRelationsAgent } from "./implementations/tenant-relations"
-export { operationsCommanderAgent, OperationsCommanderAgent } from "./implementations/operations"
-export { financialAnalystAgent, FinancialAnalystAgent } from "./implementations/financial"
-export { maintenanceCoordinatorAgent, MaintenanceCoordinatorAgent } from "./implementations/maintenance"
-export { spaceOptimizationAgent, SpaceOptimizationAgent } from "./implementations/space-optimization"
-export { complianceMonitorAgent, ComplianceMonitorAgent } from "./implementations/compliance"
+export { tenantRelationsAgent } from "./implementations/tenant-relations"
+export { operationsCommanderAgent } from "./implementations/operations"
+export { financialAnalystAgent } from "./implementations/financial"
+export { maintenanceCoordinatorAgent } from "./implementations/maintenance"
+export { spaceOptimizationAgent } from "./implementations/space-optimization"
+export { complianceMonitorAgent } from "./implementations/compliance"
+
+// Agent Classes (only those with class implementations)
+export { FinancialAnalystAgent } from "./implementations/financial"
+export { MaintenanceCoordinatorAgent } from "./implementations/maintenance"
+export { SpaceOptimizationAgent } from "./implementations/space-optimization"
+export { ComplianceMonitorAgent } from "./implementations/compliance"
 
 // Agent Tools
 export { tenantRelationsTools } from "./tools/tenant-relations"
@@ -23,7 +29,7 @@ export { SPACE_OPTIMIZATION_SYSTEM_PROMPT } from "./prompts/space-optimization"
 export { COMPLIANCE_MONITOR_SYSTEM_PROMPT } from "./prompts/compliance"
 
 // Orchestrator
-export { BaseAgent, AgentOrchestrator, createOrchestrator } from "./orchestrator"
+export { BaseAgent, AgentOrchestrator, orchestrator } from "./orchestrator"
 
 // Types
 export type {
@@ -31,7 +37,7 @@ export type {
   AgentContext,
   AgentMessage,
   AgentResponse,
-  AgentPersona,
+  AgentType,
   Tool,
   ToolResult,
   AgentAction,
@@ -44,9 +50,8 @@ import { financialAnalystAgent } from "./implementations/financial"
 import { maintenanceCoordinatorAgent } from "./implementations/maintenance"
 import { spaceOptimizationAgent } from "./implementations/space-optimization"
 import { complianceMonitorAgent } from "./implementations/compliance"
-import type { BaseAgent } from "./orchestrator"
-
-export const agentRegistry: Record<string, BaseAgent> = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const agentRegistry: Record<string, any> = {
   "tenant-relations": tenantRelationsAgent,
   "operations-commander": operationsCommanderAgent,
   "financial-analyst": financialAnalystAgent,
@@ -55,11 +60,13 @@ export const agentRegistry: Record<string, BaseAgent> = {
   "compliance-monitor": complianceMonitorAgent,
 }
 
-export function getAgent(agentId: string): BaseAgent | undefined {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getAgent(agentId: string): any | undefined {
   return agentRegistry[agentId]
 }
 
-export function getAllAgents(): BaseAgent[] {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getAllAgents(): any[] {
   return Object.values(agentRegistry)
 }
 
@@ -67,7 +74,7 @@ export const agentMetadata = [
   {
     id: "tenant-relations",
     name: "Tenant Relations Manager",
-    persona: "tenant_relations",
+    type: "tenant_relations",
     description: "Handles tenant communications, requests, and relationship management",
     color: "#10b981",
     icon: "Users",
@@ -75,7 +82,7 @@ export const agentMetadata = [
   {
     id: "operations-commander",
     name: "Operations Commander",
-    persona: "operations_commander",
+    type: "operations_commander",
     description: "Oversees daily operations, monitors KPIs, and detects anomalies",
     color: "#3b82f6",
     icon: "Activity",
@@ -83,7 +90,7 @@ export const agentMetadata = [
   {
     id: "financial-analyst",
     name: "Financial Analyst",
-    persona: "financial_analyst",
+    type: "financial_analyst",
     description: "Analyzes financial data, predicts payments, and manages collections",
     color: "#f59e0b",
     icon: "DollarSign",
@@ -91,7 +98,7 @@ export const agentMetadata = [
   {
     id: "maintenance-coordinator",
     name: "Maintenance Coordinator",
-    persona: "maintenance_coordinator",
+    type: "maintenance_coordinator",
     description: "Manages work orders, vendors, and preventive maintenance",
     color: "#ef4444",
     icon: "Wrench",
@@ -99,7 +106,7 @@ export const agentMetadata = [
   {
     id: "space-optimizer",
     name: "Space Optimization Strategist",
-    persona: "space_optimizer",
+    type: "space_optimizer",
     description: "Analyzes tenant performance, optimizes space utilization, and recommends lease decisions",
     color: "#8b5cf6",
     icon: "LayoutGrid",
@@ -107,10 +114,9 @@ export const agentMetadata = [
   {
     id: "compliance-monitor",
     name: "Compliance Monitor",
-    persona: "compliance_monitor",
+    type: "compliance_monitor",
     description: "Monitors regulatory compliance, tracks deadlines, and ensures documentation standards",
     color: "#64748b",
     icon: "Shield",
   },
 ]
-

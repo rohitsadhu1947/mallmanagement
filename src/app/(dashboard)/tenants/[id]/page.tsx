@@ -632,7 +632,7 @@ export default function TenantDetailsPage() {
 
   // Generate full lease document in new tab
   const handleGenerateLeaseDocument = (lease: Lease | null) => {
-    if (!lease) return
+    if (!lease || !tenant) return
     
     // Import the lease document generator dynamically
     import("@/lib/documents/lease-agreement").then(({ openLeaseDocument }) => {
@@ -671,7 +671,7 @@ export default function TenantDetailsPage() {
   
   // Quick download lease summary as text
   const handleDownloadLeaseSummary = (lease: Lease | null) => {
-    if (!lease) return
+    if (!lease || !tenant) return
     
     const leaseContent = `
 LEASE AGREEMENT SUMMARY
@@ -728,7 +728,7 @@ Generated on: ${format(new Date(), "dd MMM yyyy HH:mm")}
 
   // Download invoice as PDF
   const handleDownloadInvoice = (invoice: Invoice | null) => {
-    if (!invoice) return
+    if (!invoice || !tenant) return
     
     const invoiceContent = `
 INVOICE
@@ -809,7 +809,7 @@ Generated on: ${format(new Date(), "dd MMM yyyy HH:mm")}
   })
 
   const handleCreateInvoice = async () => {
-    if (!tenant.activeLease) {
+    if (!tenant || !tenant.activeLease) {
       toast({ title: "Error", description: "No active lease found", variant: "destructive" })
       return
     }
@@ -873,6 +873,10 @@ Generated on: ${format(new Date(), "dd MMM yyyy HH:mm")}
   })
 
   const handleCreateWorkOrder = async () => {
+    if (!tenant) {
+      toast({ title: "Error", description: "Tenant not loaded", variant: "destructive" })
+      return
+    }
     if (!workOrderForm.title) {
       toast({ title: "Error", description: "Title is required", variant: "destructive" })
       return

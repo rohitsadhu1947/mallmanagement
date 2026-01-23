@@ -82,7 +82,6 @@ export async function POST(request: NextRequest) {
     }
 
     const newEquipment = await db.insert(equipment).values({
-      id: crypto.randomUUID(),
       propertyId: validatedData.propertyId,
       name: validatedData.name,
       type: validatedData.type,
@@ -90,17 +89,15 @@ export async function POST(request: NextRequest) {
       model: validatedData.model || null,
       serialNumber: validatedData.serialNumber || null,
       location: validatedData.location || null,
-      installationDate: validatedData.installationDate ? new Date(validatedData.installationDate) : null,
-      warrantyExpiry: validatedData.warrantyExpiry ? new Date(validatedData.warrantyExpiry) : null,
+      installationDate: validatedData.installationDate || null,
+      warrantyExpiry: validatedData.warrantyExpiry || null,
       maintenanceFrequencyDays: validatedData.maintenanceFrequencyDays || null,
       lastMaintenanceDate: null,
-      nextMaintenanceDate: nextMaintenanceDate,
+      nextMaintenanceDate: nextMaintenanceDate?.toISOString().split("T")[0] || null,
       predictedFailureDate: null,
       predictionConfidence: null,
-      healthScore: 100,
+      healthScore: "1.00",
       status: "operational",
-      createdAt: new Date(),
-      updatedAt: new Date(),
     }).returning()
 
     return NextResponse.json(newEquipment[0], { status: 201 })
