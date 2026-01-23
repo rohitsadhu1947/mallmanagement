@@ -82,7 +82,7 @@ export function Header() {
         {/* Pending Approvals Badge */}
         {pendingApprovals > 0 && (
           <Button variant="outline" size="sm" className="gap-2" asChild>
-            <a href="/dashboard/approvals">
+            <a href="/approvals">
               <Badge variant="warning" className="h-5 w-5 rounded-full p-0 text-xs">
                 {pendingApprovals}
               </Badge>
