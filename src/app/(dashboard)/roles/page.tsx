@@ -367,7 +367,7 @@ export default function RolesPage() {
       ...prev,
       permissions: allSelected
         ? prev.permissions.filter((p) => !categoryPermissions.includes(p))
-        : [...new Set([...prev.permissions, ...categoryPermissions])],
+        : Array.from(new Set([...prev.permissions, ...categoryPermissions])),
     }))
   }
 
