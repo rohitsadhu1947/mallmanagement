@@ -7,6 +7,11 @@ import { users } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import type { UserRole } from "./index"
 
+// Validate required environment variables
+if (!process.env.AUTH_SECRET && process.env.NODE_ENV === "production") {
+  console.error("❌ AUTH_SECRET is not set. Generate one with: openssl rand -base64 32")
+}
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
