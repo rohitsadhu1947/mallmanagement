@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Bell, Search, ChevronDown, LogOut, User, Settings } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Bell, Search, ChevronDown, LogOut, User, Settings, Plus, Building2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -14,16 +15,55 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-// Mock data - will be replaced with real data
-const mockProperties = [
-  { id: "1", name: "Metro Mall", city: "Gurgaon" },
-  { id: "2", name: "City Center", city: "Bangalore" },
-]
+import { usePropertyStore } from "@/stores/property-store"
+import { signOut, useSession } from "next-auth/react"
 
 export function Header() {
-  const [selectedProperty, setSelectedProperty] = React.useState(mockProperties[0])
-  const [pendingApprovals, setPendingApprovals] = React.useState(5)
+  const router = useRouter()
+  const { data: session } = useSession()
+  const { 
+    properties, 
+    selectedProperty, 
+    isLoading, 
+    setSelectedProperty, 
+    fetchProperties 
+  } = usePropertyStore()
+  
+  const [pendingApprovals, setPendingApprovals] = React.useState(0)
+
+  // Fetch properties on mount
+  React.useEffect(() => {
+    fetchProperties()
+  }, [fetchProperties])
+
+  // Fetch pending approvals count
+  React.useEffect(() => {
+    const fetchApprovals = async () => {
+      try {
+        const response = await fetch("/api/agents/actions?status=pending")
+        if (response.ok) {
+          const data = await response.json()
+          setPendingApprovals(data.data?.length || 0)
+        }
+      } catch (error) {
+        console.error("Error fetching approvals:", error)
+      }
+    }
+    fetchApprovals()
+  }, [])
+
+  const handleAddProperty = () => {
+    router.push("/properties?action=add")
+  }
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/auth/login" })
+  }
+
+  // Get user initials
+  const userInitials = session?.user?.name
+    ? session.user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
+    : "U"
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-white px-6 dark:bg-gray-950">
@@ -31,38 +71,62 @@ export function Header() {
       <div className="flex items-center gap-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-                <span className="font-medium">{selectedProperty.name}</span>
-                <span className="text-muted-foreground">({selectedProperty.city})</span>
-              </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <Button variant="outline" className="gap-2 min-w-[200px] justify-between">
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : selectedProperty ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-green-500" />
+                  <span className="font-medium truncate max-w-[120px]">{selectedProperty.name}</span>
+                  <span className="text-muted-foreground">({selectedProperty.city})</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Select Property</span>
+                </div>
+              )}
+              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-64">
             <DropdownMenuLabel>Select Property</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {mockProperties.map((property) => (
-              <DropdownMenuItem
-                key={property.id}
-                onClick={() => setSelectedProperty(property)}
-                className="cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`h-2 w-2 rounded-full ${
-                      property.id === selectedProperty.id ? "bg-green-500" : "bg-gray-300"
-                    }`}
-                  />
-                  <span>{property.name}</span>
-                  <span className="text-muted-foreground">({property.city})</span>
-                </div>
-              </DropdownMenuItem>
-            ))}
+            {properties.length === 0 && !isLoading ? (
+              <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                No properties found
+              </div>
+            ) : (
+              properties.map((property) => (
+                <DropdownMenuItem
+                  key={property.id}
+                  onClick={() => setSelectedProperty(property)}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <div
+                      className={`h-2 w-2 rounded-full shrink-0 ${
+                        property.id === selectedProperty?.id ? "bg-green-500" : "bg-gray-300"
+                      }`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{property.name}</div>
+                      <div className="text-xs text-muted-foreground">{property.city} • {property.type}</div>
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              ))
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-primary">
-              + Add Property
+            <DropdownMenuItem 
+              className="cursor-pointer text-primary"
+              onClick={handleAddProperty}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Property
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -148,12 +212,14 @@ export function Header() {
               <Avatar className="h-8 w-8">
                 <AvatarImage src="/placeholder-avatar.jpg" />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                  JD
+                  {userInitials}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden flex-col items-start md:flex">
-                <span className="text-sm font-medium">John Doe</span>
-                <span className="text-[10px] text-muted-foreground">Mall Manager</span>
+                <span className="text-sm font-medium">{session?.user?.name || "User"}</span>
+                <span className="text-[10px] text-muted-foreground capitalize">
+                  {session?.user?.role?.replace("_", " ") || "Mall Manager"}
+                </span>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </Button>
@@ -170,7 +236,7 @@ export function Header() {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-red-600">
+            <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Log out
             </DropdownMenuItem>
@@ -180,4 +246,3 @@ export function Header() {
     </header>
   )
 }
-

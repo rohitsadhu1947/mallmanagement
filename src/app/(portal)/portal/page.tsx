@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Building2,
   MessageCircle,
@@ -27,6 +28,7 @@ import {
   ArrowRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useSession } from "next-auth/react"
 
 interface Message {
   id: string
@@ -34,6 +36,15 @@ interface Message {
   content: string
   timestamp: Date
   agentName?: string
+}
+
+interface StoreInfo {
+  propertyName: string
+  tenantName: string
+  unitNumber: string
+  floor: string
+  areaSqft: string
+  leaseEnd: string
 }
 
 const quickActions = [
@@ -88,8 +99,30 @@ const recentUpdates = [
 ]
 
 export default function TenantPortalPage() {
+  const { data: session } = useSession()
   const [mounted, setMounted] = React.useState(false)
   const [messages, setMessages] = React.useState<Message[]>([])
+  const [storeInfo, setStoreInfo] = React.useState<StoreInfo | null>(null)
+  const [isLoadingStore, setIsLoadingStore] = React.useState(true)
+
+  // Fetch tenant store info
+  React.useEffect(() => {
+    const fetchStoreInfo = async () => {
+      try {
+        // In a real app, this would fetch the tenant's info based on their session
+        const response = await fetch("/api/portal/store-info")
+        if (response.ok) {
+          const data = await response.json()
+          setStoreInfo(data)
+        }
+      } catch (error) {
+        console.error("Error fetching store info:", error)
+      } finally {
+        setIsLoadingStore(false)
+      }
+    }
+    fetchStoreInfo()
+  }, [])
 
   // Initialize messages on client side to avoid hydration mismatch
   React.useEffect(() => {
@@ -182,7 +215,13 @@ export default function TenantPortalPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Tenant Portal</h1>
-            <p className="text-muted-foreground">Phoenix Mall - Premium Retail</p>
+            {isLoadingStore ? (
+              <Skeleton className="h-4 w-48" />
+            ) : (
+              <p className="text-muted-foreground">
+                {storeInfo?.propertyName || "Your Store"} - {storeInfo?.tenantName || "Retail"}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -356,19 +395,43 @@ export default function TenantPortalPage() {
               <div className="flex items-center gap-3">
                 <Building2 className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">Urban Style Fashion</p>
-                  <p className="text-xs text-muted-foreground">Unit 203, 2nd Floor</p>
+                  {isLoadingStore ? (
+                    <>
+                      <Skeleton className="h-4 w-32 mb-1" />
+                      <Skeleton className="h-3 w-24" />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium">{storeInfo?.tenantName || "Your Store"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {storeInfo?.unitNumber || "N/A"}, {storeInfo?.floor || "N/A"}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
               <Separator />
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Area</p>
-                  <p className="font-medium">1,500 sq ft</p>
+                  {isLoadingStore ? (
+                    <Skeleton className="h-4 w-16" />
+                  ) : (
+                    <p className="font-medium">{storeInfo?.areaSqft || "N/A"} sq ft</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted-foreground">Lease Ends</p>
-                  <p className="font-medium">Dec 2026</p>
+                  {isLoadingStore ? (
+                    <Skeleton className="h-4 w-20" />
+                  ) : (
+                    <p className="font-medium">
+                      {storeInfo?.leaseEnd 
+                        ? new Date(storeInfo.leaseEnd).toLocaleDateString("en-IN", { month: "short", year: "numeric" })
+                        : "N/A"
+                      }
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
