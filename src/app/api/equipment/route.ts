@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       filtered = filtered.filter(e => e.status === status)
     }
 
-    return NextResponse.json(filtered)
+    return NextResponse.json({ success: true, data: filtered })
   } catch (error) {
     console.error("Error fetching equipment:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       status: "operational",
     }).returning()
 
-    return NextResponse.json(newEquipment[0], { status: 201 })
+    return NextResponse.json({ success: true, data: newEquipment[0] }, { status: 201 })
   } catch (error: any) {
     console.error("Error creating equipment:", error)
     if (error instanceof z.ZodError) {

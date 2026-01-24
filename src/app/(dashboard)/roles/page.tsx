@@ -186,8 +186,8 @@ export default function RolesPage() {
     try {
       const response = await fetch("/api/roles")
       if (!response.ok) throw new Error("Failed to fetch roles")
-      const data = await response.json()
-      setRoles(data)
+      const result = await response.json()
+      setRoles(result.data || result || [])
     } catch (error) {
       console.error("Error fetching roles:", error)
       toast({

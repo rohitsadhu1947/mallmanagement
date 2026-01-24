@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json(result)
+    return NextResponse.json({ success: true, data: result })
   } catch (error) {
     console.error("Get users error:", error)
     return NextResponse.json(
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = newUser!
 
-    return NextResponse.json(userWithoutPassword, { status: 201 })
+    return NextResponse.json({ success: true, data: userWithoutPassword }, { status: 201 })
   } catch (error) {
     console.error("Create user error:", error)
     return NextResponse.json(

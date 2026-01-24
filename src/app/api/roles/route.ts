@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
         createdAt: new Date(),
         updatedAt: new Date(),
       }))
-      return NextResponse.json(defaultRoles)
+      return NextResponse.json({ success: true, data: defaultRoles })
     }
 
-    return NextResponse.json(allRoles)
+    return NextResponse.json({ success: true, data: allRoles })
   } catch (error) {
     console.error("Get roles error:", error)
     return NextResponse.json(
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       where: eq(roles.id, roleId),
     })
 
-    return NextResponse.json(newRole, { status: 201 })
+    return NextResponse.json({ success: true, data: newRole }, { status: 201 })
   } catch (error) {
     console.error("Create role error:", error)
     return NextResponse.json(

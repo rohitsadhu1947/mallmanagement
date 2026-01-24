@@ -146,8 +146,8 @@ export default function UsersPage() {
       const url = `/api/users${params.toString() ? `?${params}` : ""}`
       const response = await fetch(url)
       if (!response.ok) throw new Error("Failed to fetch users")
-      const data = await response.json()
-      setUsers(data)
+      const result = await response.json()
+      setUsers(result.data || result || [])
     } catch (error) {
       console.error("Error fetching users:", error)
       toast({
@@ -164,8 +164,8 @@ export default function UsersPage() {
     try {
       const response = await fetch("/api/roles")
       if (!response.ok) throw new Error("Failed to fetch roles")
-      const data = await response.json()
-      setRoles(data)
+      const result = await response.json()
+      setRoles(result.data || result || [])
     } catch (error) {
       console.error("Error fetching roles:", error)
     }

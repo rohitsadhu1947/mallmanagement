@@ -294,12 +294,13 @@ function WorkOrdersPageContent() {
       const url = `/api/work-orders${params.toString() ? `?${params}` : ""}`
       const response = await fetch(url)
       if (!response.ok) throw new Error("Failed to fetch work orders")
-      const data = await response.json()
-      setWorkOrders(data)
+      const result = await response.json()
+      const workOrdersData = result.data || result || []
+      setWorkOrders(workOrdersData)
       
       // If filtering by tenant, get tenant name from first work order
-      if (tenantIdFilter && data.length > 0 && data[0].tenant) {
-        setFilterTenantName(data[0].tenant.businessName)
+      if (tenantIdFilter && workOrdersData.length > 0 && workOrdersData[0].tenant) {
+        setFilterTenantName(workOrdersData[0].tenant.businessName)
       }
     } catch (error) {
       console.error("Error fetching work orders:", error)

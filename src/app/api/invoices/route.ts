@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       CACHE_TTL.MEDIUM // 5 minutes
     )
 
-    return NextResponse.json(result)
+    return NextResponse.json({ success: true, data: result })
   } catch (error) {
     console.error("Get invoices error:", error)
     return NextResponse.json(
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     await deleteCache(`invoices:list:all:all`)
     await deleteCache(`invoices:list:all:pending`)
 
-    return NextResponse.json(newInvoice, { status: 201 })
+    return NextResponse.json({ success: true, data: newInvoice }, { status: 201 })
   } catch (error) {
     console.error("Create invoice error:", error)
     return NextResponse.json(

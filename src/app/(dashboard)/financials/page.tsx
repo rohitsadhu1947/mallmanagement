@@ -177,12 +177,13 @@ function FinancialsPageContent() {
       const url = params.toString() ? `/api/invoices?${params.toString()}` : "/api/invoices"
       const response = await fetch(url)
       if (!response.ok) throw new Error("Failed to fetch invoices")
-      const data = await response.json()
-      setInvoices(data)
+      const result = await response.json()
+      const invoicesData = result.data || result || []
+      setInvoices(invoicesData)
       
       // If filtering by tenant, get tenant name from first invoice
-      if (tenantIdFilter && data.length > 0 && data[0].tenant) {
-        setFilterTenantName(data[0].tenant.businessName)
+      if (tenantIdFilter && invoicesData.length > 0 && invoicesData[0].tenant) {
+        setFilterTenantName(invoicesData[0].tenant.businessName)
       }
     } catch (error) {
       console.error("Error fetching invoices:", error)

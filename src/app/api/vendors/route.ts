@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       filtered = filtered.filter(v => v.status === status)
     }
 
-    return NextResponse.json(filtered)
+    return NextResponse.json({ success: true, data: filtered })
   } catch (error) {
     console.error("Error fetching vendors:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       },
     }).returning()
 
-    return NextResponse.json(newVendor[0], { status: 201 })
+    return NextResponse.json({ success: true, data: newVendor[0] }, { status: 201 })
   } catch (error: any) {
     console.error("Error creating vendor:", error)
     if (error instanceof z.ZodError) {

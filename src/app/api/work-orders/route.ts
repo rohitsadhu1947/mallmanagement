@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       CACHE_TTL.SHORT // 1 minute for work orders (more real-time)
     )
 
-    return NextResponse.json(result)
+    return NextResponse.json({ success: true, data: result })
   } catch (error) {
     console.error("Get work orders error:", error)
     return NextResponse.json(
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     // Invalidate work order list cache
     await invalidateEntityCache("workorder", workOrderId, propertyId)
 
-    return NextResponse.json(newWorkOrder, { status: 201 })
+    return NextResponse.json({ success: true, data: newWorkOrder }, { status: 201 })
   } catch (error) {
     console.error("Create work order error:", error)
     return NextResponse.json(

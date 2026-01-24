@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       filtered = filtered.filter(r => r.riskLevel === riskLevel)
     }
 
-    return NextResponse.json(filtered)
+    return NextResponse.json({ success: true, data: filtered })
   } catch (error) {
     console.error("Error fetching compliance requirements:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       documentsRequired: validatedData.documentsRequired,
     }).returning()
 
-    return NextResponse.json(newRequirement[0], { status: 201 })
+    return NextResponse.json({ success: true, data: newRequirement[0] }, { status: 201 })
   } catch (error: any) {
     console.error("Error creating compliance requirement:", error)
     if (error instanceof z.ZodError) {
