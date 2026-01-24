@@ -178,21 +178,23 @@ export default function LeasesPage() {
     }
   }, [selectedProperty, statusFilter, toast])
 
-  // Fetch tenants for dropdown
-  const fetchTenants = React.useCallback(async () => {
+  // Fetch tenants for dropdown - based on form's selected property
+  const fetchTenantsForProperty = React.useCallback(async (propertyId: string) => {
+    if (!propertyId) {
+      setTenants([])
+      return
+    }
     try {
-      const url = selectedProperty 
-        ? `/api/tenants?propertyId=${selectedProperty.id}`
-        : "/api/tenants"
-      const response = await fetch(url)
+      const response = await fetch(`/api/tenants?propertyId=${propertyId}`)
       if (response.ok) {
         const result = await response.json()
         setTenants(result.data || result || [])
       }
     } catch (error) {
       console.error("Error fetching tenants:", error)
+      setTenants([])
     }
-  }, [selectedProperty])
+  }, [])
 
   // Fetch properties for dropdown
   const fetchProperties = React.useCallback(async () => {
@@ -209,9 +211,14 @@ export default function LeasesPage() {
 
   React.useEffect(() => {
     fetchLeases()
-    fetchTenants()
     fetchProperties()
-  }, [fetchLeases, fetchTenants, fetchProperties])
+  }, [fetchLeases, fetchProperties])
+
+  // Handle property change in the form - fetch tenants for selected property
+  const handlePropertyChange = React.useCallback((propertyId: string) => {
+    setLeaseForm(prev => ({ ...prev, propertyId, tenantId: "" })) // Reset tenant when property changes
+    fetchTenantsForProperty(propertyId)
+  }, [fetchTenantsForProperty])
 
   // Create lease handler
   const handleCreateLease = async (e: React.FormEvent) => {
@@ -343,7 +350,7 @@ export default function LeasesPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Property *</label>
-                        <Select value={leaseForm.propertyId} onValueChange={(v) => setLeaseForm({...leaseForm, propertyId: v})}>
+                        <Select value={leaseForm.propertyId} onValueChange={handlePropertyChange}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select property" />
                           </SelectTrigger>
@@ -356,14 +363,24 @@ export default function LeasesPage() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Tenant *</label>
-                        <Select value={leaseForm.tenantId} onValueChange={(v) => setLeaseForm({...leaseForm, tenantId: v})}>
+                        <Select 
+                          value={leaseForm.tenantId} 
+                          onValueChange={(v) => setLeaseForm({...leaseForm, tenantId: v})}
+                          disabled={!leaseForm.propertyId}
+                        >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select tenant" />
+                            <SelectValue placeholder={!leaseForm.propertyId ? "Select property first" : "Select tenant"} />
                           </SelectTrigger>
                           <SelectContent>
-                            {tenants.map(t => (
-                              <SelectItem key={t.id} value={t.id}>{t.businessName}</SelectItem>
-                            ))}
+                            {tenants.length === 0 ? (
+                              <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                                No tenants found for this property
+                              </div>
+                            ) : (
+                              tenants.map(t => (
+                                <SelectItem key={t.id} value={t.id}>{t.businessName}</SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                       </div>

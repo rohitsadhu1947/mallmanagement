@@ -64,6 +64,7 @@ import {
 } from "lucide-react"
 import { formatRelativeTime } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
+import { usePropertyStore } from "@/stores/property-store"
 
 interface WorkOrder {
   id: string
@@ -120,6 +121,7 @@ const statusConfig: Record<string, { color: string; label: string; icon: React.R
 function WorkOrdersPageContent() {
   const { toast } = useToast()
   const searchParams = useSearchParams()
+  const { selectedProperty } = usePropertyStore()
   const tenantIdFilter = searchParams.get("tenantId")
   const [workOrders, setWorkOrders] = React.useState<WorkOrder[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
@@ -282,7 +284,7 @@ function WorkOrdersPageContent() {
     setAssignDialogOpen(true)
   }
 
-  // Fetch work orders from API
+  // Fetch work orders from API - filtered by selected property
   const fetchWorkOrders = React.useCallback(async () => {
     setIsLoading(true)
     try {
@@ -290,6 +292,7 @@ function WorkOrdersPageContent() {
       if (statusFilter !== "all") params.set("status", statusFilter)
       if (priorityFilter !== "all") params.set("priority", priorityFilter)
       if (tenantIdFilter) params.set("tenantId", tenantIdFilter)
+      if (selectedProperty) params.set("propertyId", selectedProperty.id)
       
       const url = `/api/work-orders${params.toString() ? `?${params}` : ""}`
       const response = await fetch(url)
@@ -312,7 +315,7 @@ function WorkOrdersPageContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [statusFilter, priorityFilter, tenantIdFilter, toast])
+  }, [statusFilter, priorityFilter, tenantIdFilter, selectedProperty, toast])
 
   React.useEffect(() => {
     fetchWorkOrders()
@@ -324,12 +327,22 @@ function WorkOrdersPageContent() {
     setIsSubmitting(true)
 
     try {
+      if (!selectedProperty) {
+        toast({
+          title: "Error",
+          description: "Please select a property from the header first.",
+          variant: "destructive",
+        })
+        setIsSubmitting(false)
+        return
+      }
+      
       const response = await fetch("/api/work-orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          propertyId: "default", // Would come from context/state
+          propertyId: selectedProperty.id,
         }),
       })
 

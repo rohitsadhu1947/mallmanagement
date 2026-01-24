@@ -63,6 +63,7 @@ import {
 } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
+import { usePropertyStore } from "@/stores/property-store"
 
 interface Invoice {
   id: string
@@ -110,6 +111,7 @@ const invoiceTypeLabels: Record<string, string> = {
 function FinancialsPageContent() {
   const { toast } = useToast()
   const searchParams = useSearchParams()
+  const { selectedProperty } = usePropertyStore()
   const tenantIdFilter = searchParams.get("tenantId")
   const [invoices, setInvoices] = React.useState<Invoice[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
@@ -123,7 +125,7 @@ function FinancialsPageContent() {
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [leases, setLeases] = React.useState<{id: string; unitNumber: string; tenantName: string}[]>([])
+  const [leases, setLeases] = React.useState<{id: string; unitNumber: string; tenantName: string; propertyName: string}[]>([])
   
   // Form states
   const [invoiceForm, setInvoiceForm] = React.useState({
@@ -143,11 +145,14 @@ function FinancialsPageContent() {
     referenceNumber: "",
   })
 
-  // Fetch leases for create invoice form
+  // Fetch leases for create invoice form - filtered by selected property
   React.useEffect(() => {
     const fetchLeases = async () => {
       try {
-        const response = await fetch("/api/leases?status=active")
+        const url = selectedProperty 
+          ? `/api/leases?status=active&propertyId=${selectedProperty.id}`
+          : "/api/leases?status=active"
+        const response = await fetch(url)
         if (response.ok) {
           const result = await response.json()
           // API returns { success: true, data: [...] }
@@ -156,6 +161,7 @@ function FinancialsPageContent() {
             id: l.id,
             unitNumber: l.unitNumber,
             tenantName: l.tenant?.businessName || "Unknown",
+            propertyName: l.property?.name || "Unknown",
           })))
         }
       } catch (error) {
@@ -163,9 +169,9 @@ function FinancialsPageContent() {
       }
     }
     fetchLeases()
-  }, [])
+  }, [selectedProperty])
 
-  // Fetch invoices from API
+  // Fetch invoices from API - filtered by selected property
   const fetchInvoices = React.useCallback(async () => {
     setIsLoading(true)
     try {
@@ -173,6 +179,7 @@ function FinancialsPageContent() {
       const params = new URLSearchParams()
       if (statusFilter !== "all") params.set("status", statusFilter)
       if (tenantIdFilter) params.set("tenantId", tenantIdFilter)
+      if (selectedProperty) params.set("propertyId", selectedProperty.id)
       
       const url = params.toString() ? `/api/invoices?${params.toString()}` : "/api/invoices"
       const response = await fetch(url)
@@ -195,7 +202,7 @@ function FinancialsPageContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [statusFilter, tenantIdFilter, toast])
+  }, [statusFilter, tenantIdFilter, selectedProperty, toast])
 
   React.useEffect(() => {
     fetchInvoices()
@@ -417,14 +424,20 @@ function FinancialsPageContent() {
                       onValueChange={(value) => setInvoiceForm(prev => ({ ...prev, leaseId: value }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a lease" />
+                        <SelectValue placeholder={leases.length === 0 ? "No active leases found" : "Select a lease"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {leases.map((lease) => (
-                          <SelectItem key={lease.id} value={lease.id}>
-                            {lease.tenantName} - Unit {lease.unitNumber}
-                          </SelectItem>
-                        ))}
+                        {leases.length === 0 ? (
+                          <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                            No active leases found{selectedProperty ? ` for ${selectedProperty.name}` : ""}
+                          </div>
+                        ) : (
+                          leases.map((lease) => (
+                            <SelectItem key={lease.id} value={lease.id}>
+                              {lease.tenantName} - Unit {lease.unitNumber}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
