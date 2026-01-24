@@ -149,8 +149,10 @@ function FinancialsPageContent() {
       try {
         const response = await fetch("/api/leases?status=active")
         if (response.ok) {
-          const data = await response.json()
-          setLeases(data.map((l: any) => ({
+          const result = await response.json()
+          // API returns { success: true, data: [...] }
+          const leasesData = result.data || result || []
+          setLeases(leasesData.map((l: any) => ({
             id: l.id,
             unitNumber: l.unitNumber,
             tenantName: l.tenant?.businessName || "Unknown",

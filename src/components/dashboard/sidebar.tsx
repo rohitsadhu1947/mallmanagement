@@ -24,6 +24,7 @@ import {
   Truck,
   Cpu,
   UserCog,
+  FileSignature,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -52,7 +53,13 @@ const navigation = [
         title: "Tenants",
         href: "/tenants",
         icon: Users,
-        description: "Tenant relationships & leases",
+        description: "Tenant relationships",
+      },
+      {
+        title: "Leases",
+        href: "/leases",
+        icon: FileSignature,
+        description: "Lease agreements & renewals",
       },
       {
         title: "Financials",
