@@ -392,7 +392,21 @@ export default function LeasesPage() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Floor</label>
-                        <Input value={leaseForm.floor} onChange={(e) => setLeaseForm({...leaseForm, floor: e.target.value})} placeholder="e.g., Ground" />
+                        <Select value={leaseForm.floor} onValueChange={(v) => setLeaseForm({...leaseForm, floor: v})}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select floor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="basement">Basement</SelectItem>
+                            <SelectItem value="ground">Ground Floor</SelectItem>
+                            <SelectItem value="1">1st Floor</SelectItem>
+                            <SelectItem value="2">2nd Floor</SelectItem>
+                            <SelectItem value="3">3rd Floor</SelectItem>
+                            <SelectItem value="4">4th Floor</SelectItem>
+                            <SelectItem value="5">5th Floor</SelectItem>
+                            <SelectItem value="6">6th Floor</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Zone</label>

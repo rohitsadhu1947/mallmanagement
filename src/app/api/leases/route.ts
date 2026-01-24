@@ -140,6 +140,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Parse floor - can be number or text like "Ground", "Basement"
+    let floorNumber: number | null = null
+    if (floor) {
+      const parsed = parseInt(floor)
+      if (!isNaN(parsed)) {
+        floorNumber = parsed
+      } else if (floor.toLowerCase() === "ground" || floor.toLowerCase() === "g") {
+        floorNumber = 0
+      } else if (floor.toLowerCase() === "basement" || floor.toLowerCase() === "b1") {
+        floorNumber = -1
+      }
+    }
+
     // Create lease
     const [newLease] = await db
       .insert(leases)
@@ -147,7 +160,7 @@ export async function POST(request: NextRequest) {
         tenantId,
         propertyId,
         unitNumber,
-        floor: floor || null,
+        floor: floorNumber,
         zone: zone || null,
         areaSqft: areaSqft.toString(),
         leaseType,
@@ -158,9 +171,9 @@ export async function POST(request: NextRequest) {
         startDate: startDate,
         endDate: endDate,
         rentEscalationPercentage: escalationRate?.toString() || null,
-        escalationFrequencyMonths: escalationFrequency || null,
-        lockInPeriodMonths: lockInPeriod || null,
-        noticePeriodMonths: terminationNoticeDays ? Math.ceil(terminationNoticeDays / 30) : null,
+        escalationFrequencyMonths: escalationFrequency ? parseInt(escalationFrequency.toString()) : null,
+        lockInPeriodMonths: lockInPeriod ? parseInt(lockInPeriod.toString()) : null,
+        noticePeriodMonths: terminationNoticeDays ? Math.ceil(parseInt(terminationNoticeDays.toString()) / 30) : null,
         status,
         // Store additional fields in metadata JSON
         metadata: {
@@ -168,6 +181,7 @@ export async function POST(request: NextRequest) {
           rentFreePeriod: rentFreePeriod || null,
           terminationNoticeDays: terminationNoticeDays || 90,
           maintenanceCharges: maintenanceCharges || null,
+          floorName: floor || null, // Store original floor name
         },
       })
       .returning()
