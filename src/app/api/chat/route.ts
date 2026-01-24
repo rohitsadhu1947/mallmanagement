@@ -33,12 +33,15 @@ async function generateSmartResponse(
         where: and(eq(leases.tenantId, tenantId), eq(leases.status, "active")),
       })
       
-      recentInvoices = await db
-        .select()
-        .from(invoices)
-        .where(eq(invoices.tenantId, tenantId))
-        .orderBy(desc(invoices.createdAt))
-        .limit(5)
+      // Get invoices through the lease relationship
+      if (activeLease) {
+        recentInvoices = await db
+          .select()
+          .from(invoices)
+          .where(eq(invoices.leaseId, activeLease.id))
+          .orderBy(desc(invoices.createdAt))
+          .limit(5)
+      }
         
       recentWorkOrders = await db
         .select()
