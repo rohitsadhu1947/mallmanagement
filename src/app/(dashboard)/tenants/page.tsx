@@ -32,6 +32,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -159,17 +161,52 @@ export default function TenantsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [selectedTenant, setSelectedTenant] = React.useState<Tenant | null>(null)
 
-  // Form for creating tenant
+  // Form for creating tenant - comprehensive form with all fields
   const createForm = useForm<TenantFormData>({
     resolver: zodResolver(tenantSchema),
     defaultValues: {
+      // Basic Info
       businessName: "",
+      legalEntityName: "",
+      brandName: "",
       category: undefined,
+      subcategory: "",
+      businessType: undefined,
+      website: "",
+      status: "onboarding",
+      // Contact Info
       contactPerson: "",
+      designation: "",
       email: "",
       phone: "",
+      alternatePhone: "",
+      authorizedSignatory: "",
+      signatoryPhone: "",
+      signatoryEmail: "",
+      emergencyContactName: "",
+      emergencyContactPhone: "",
+      // Tax & Compliance
       gstin: "",
+      pan: "",
+      tan: "",
+      cin: "",
+      fssaiLicense: "",
+      tradeLicense: "",
+      shopEstablishmentNumber: "",
+      // Banking
+      bankName: "",
+      bankBranch: "",
+      accountNumber: "",
+      ifscCode: "",
+      accountHolderName: "",
+      // Address
+      registeredAddress: "",
+      registeredCity: "",
+      registeredState: "",
+      registeredPincode: "",
+      // Property
       propertyId: "",
+      notes: "",
     },
   })
 
@@ -468,147 +505,582 @@ export default function TenantsPage() {
                 Add Tenant
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
               <Form {...createForm}>
                 <form onSubmit={createForm.handleSubmit(handleSubmit)}>
                   <DialogHeader>
                     <DialogTitle>Add New Tenant</DialogTitle>
                     <DialogDescription>
-                      Enter the tenant details to create a new tenant record.
+                      Enter comprehensive tenant details for onboarding.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <FormField
-                      control={createForm.control}
-                      name="propertyId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Property *</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select property" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {properties.map((property) => (
-                                <SelectItem key={property.id} value={property.id}>
-                                  {property.name} ({property.city})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={createForm.control}
-                      name="businessName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Business Name *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter business name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={createForm.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="fashion">Fashion</SelectItem>
-                              <SelectItem value="food_beverage">Food & Beverage</SelectItem>
-                              <SelectItem value="electronics">Electronics</SelectItem>
-                              <SelectItem value="entertainment">Entertainment</SelectItem>
-                              <SelectItem value="services">Services</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid grid-cols-2 gap-4">
+                  
+                  <Tabs defaultValue="basic" className="mt-4">
+                    <TabsList className="grid w-full grid-cols-5">
+                      <TabsTrigger value="basic">Basic</TabsTrigger>
+                      <TabsTrigger value="contact">Contact</TabsTrigger>
+                      <TabsTrigger value="tax">Tax & Compliance</TabsTrigger>
+                      <TabsTrigger value="bank">Banking</TabsTrigger>
+                      <TabsTrigger value="address">Address</TabsTrigger>
+                    </TabsList>
+
+                    {/* Basic Tab */}
+                    <TabsContent value="basic" className="space-y-4 mt-4">
                       <FormField
                         control={createForm.control}
-                        name="contactPerson"
+                        name="propertyId"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Contact Person</FormLabel>
+                            <FormLabel>Property *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select property" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {properties.map((property) => (
+                                  <SelectItem key={property.id} value={property.id}>
+                                    {property.name} ({property.city})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="businessName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Business Name *</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Enter business name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="legalEntityName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Legal Entity Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Registered company name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="brandName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Brand Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Trading brand name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="category"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Category</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select category" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="fashion">Fashion</SelectItem>
+                                  <SelectItem value="food_beverage">Food & Beverage</SelectItem>
+                                  <SelectItem value="electronics">Electronics</SelectItem>
+                                  <SelectItem value="entertainment">Entertainment</SelectItem>
+                                  <SelectItem value="services">Services</SelectItem>
+                                  <SelectItem value="health_beauty">Health & Beauty</SelectItem>
+                                  <SelectItem value="home_lifestyle">Home & Lifestyle</SelectItem>
+                                  <SelectItem value="jewelry">Jewelry</SelectItem>
+                                  <SelectItem value="sports">Sports</SelectItem>
+                                  <SelectItem value="books_stationery">Books & Stationery</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="businessType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Business Type</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
+                                  <SelectItem value="partnership">Partnership</SelectItem>
+                                  <SelectItem value="llp">LLP</SelectItem>
+                                  <SelectItem value="pvt_ltd">Private Limited</SelectItem>
+                                  <SelectItem value="public_ltd">Public Limited</SelectItem>
+                                  <SelectItem value="opc">One Person Company</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="status"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Status</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select status" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="onboarding">Onboarding</SelectItem>
+                                  <SelectItem value="active">Active</SelectItem>
+                                  <SelectItem value="inactive">Inactive</SelectItem>
+                                  <SelectItem value="suspended">Suspended</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={createForm.control}
+                        name="website"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Website</FormLabel>
                             <FormControl>
-                              <Input placeholder="Contact name" {...field} />
+                              <Input placeholder="https://" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                    </TabsContent>
+
+                    {/* Contact Tab */}
+                    <TabsContent value="contact" className="space-y-4 mt-4">
+                      <p className="text-sm text-muted-foreground font-medium">Primary Contact</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="contactPerson"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Contact Person</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Full name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="designation"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Designation</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g., Store Manager" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email</FormLabel>
+                              <FormControl>
+                                <Input type="email" placeholder="email@example.com" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="phone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Phone</FormLabel>
+                              <FormControl>
+                                <Input placeholder="10-digit mobile" {...field} onChange={(e) => handlePhoneInput(e.target.value, field.onChange)} maxLength={13} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       <FormField
                         control={createForm.control}
-                        name="phone"
+                        name="alternatePhone"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Phone</FormLabel>
+                            <FormLabel>Alternate Phone</FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder="10-digit mobile"
-                                {...field}
-                                onChange={(e) => handlePhoneInput(e.target.value, field.onChange)}
-                                maxLength={13} // +91 + 10 digits
-                              />
+                              <Input placeholder="10-digit mobile" {...field} onChange={(e) => handlePhoneInput(e.target.value, field.onChange)} maxLength={13} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    </div>
-                    <FormField
-                      control={createForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="email@example.com"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={createForm.control}
-                      name="gstin"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>GSTIN</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="15-character GSTIN"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                              maxLength={15}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <DialogFooter>
+                      
+                      <p className="text-sm text-muted-foreground font-medium pt-4">Authorized Signatory</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="authorizedSignatory"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Signatory Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Full name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="signatoryPhone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Signatory Phone</FormLabel>
+                              <FormControl>
+                                <Input placeholder="10-digit mobile" {...field} onChange={(e) => handlePhoneInput(e.target.value, field.onChange)} maxLength={13} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={createForm.control}
+                        name="signatoryEmail"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Signatory Email</FormLabel>
+                            <FormControl>
+                              <Input type="email" placeholder="email@example.com" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <p className="text-sm text-muted-foreground font-medium pt-4">Emergency Contact</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="emergencyContactName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Emergency Contact</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Full name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="emergencyContactPhone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Emergency Phone</FormLabel>
+                              <FormControl>
+                                <Input placeholder="10-digit mobile" {...field} onChange={(e) => handlePhoneInput(e.target.value, field.onChange)} maxLength={13} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </TabsContent>
+
+                    {/* Tax & Compliance Tab */}
+                    <TabsContent value="tax" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="gstin"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>GSTIN</FormLabel>
+                              <FormControl>
+                                <Input placeholder="15-character GSTIN" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} maxLength={15} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="pan"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>PAN</FormLabel>
+                              <FormControl>
+                                <Input placeholder="10-character PAN" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} maxLength={10} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="tan"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>TAN</FormLabel>
+                              <FormControl>
+                                <Input placeholder="10-character TAN" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} maxLength={10} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="cin"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>CIN</FormLabel>
+                              <FormControl>
+                                <Input placeholder="21-character CIN" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} maxLength={21} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="fssaiLicense"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>FSSAI License</FormLabel>
+                              <FormControl>
+                                <Input placeholder="For F&B businesses" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="tradeLicense"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Trade License</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Trade license number" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={createForm.control}
+                        name="shopEstablishmentNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Shop & Establishment Number</FormLabel>
+                            <FormControl>
+                              <Input placeholder="S&E registration number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </TabsContent>
+
+                    {/* Banking Tab */}
+                    <TabsContent value="bank" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="bankName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bank Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g., HDFC Bank" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="bankBranch"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Branch</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Branch name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="accountNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Account Number</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Bank account number" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="ifscCode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>IFSC Code</FormLabel>
+                              <FormControl>
+                                <Input placeholder="11-character IFSC" {...field} onChange={(e) => field.onChange(e.target.value.toUpperCase())} maxLength={11} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={createForm.control}
+                        name="accountHolderName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Account Holder Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Name as per bank records" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </TabsContent>
+
+                    {/* Address Tab */}
+                    <TabsContent value="address" className="space-y-4 mt-4">
+                      <FormField
+                        control={createForm.control}
+                        name="registeredAddress"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Registered Address</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Full address" {...field} rows={3} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="grid grid-cols-3 gap-4">
+                        <FormField
+                          control={createForm.control}
+                          name="registeredCity"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>City</FormLabel>
+                              <FormControl>
+                                <Input placeholder="City" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="registeredState"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>State</FormLabel>
+                              <FormControl>
+                                <Input placeholder="State" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createForm.control}
+                          name="registeredPincode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>PIN Code</FormLabel>
+                              <FormControl>
+                                <Input placeholder="6-digit PIN" {...field} maxLength={6} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={createForm.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Notes</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Additional notes or comments..." {...field} rows={3} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </TabsContent>
+                  </Tabs>
+
+                  <DialogFooter className="mt-6">
                     <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                       Cancel
                     </Button>
