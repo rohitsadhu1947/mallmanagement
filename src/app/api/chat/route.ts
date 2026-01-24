@@ -1,264 +1,147 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { db } from "@/lib/db"
-import { conversations, messages, tenants, leases, workOrders, invoices } from "@/lib/db/schema"
-import { eq, and, desc } from "drizzle-orm"
 
-// Smart response generator for common tenant queries
-async function generateSmartResponse(
-  message: string,
-  tenantId: string,
-  propertyId: string
-): Promise<{
+// Pure rule-based response generator - no database dependency
+function generateRuleBasedResponse(message: string): {
   response: string
   confidence: number
   actionsTaken: string[]
   requiresApproval: boolean
-}> {
-  const lowerMessage = message.toLowerCase()
+} {
+  const lowerMessage = message.toLowerCase().trim()
   
-  // Fetch tenant data for context
-  let tenantData = null
-  let activeLease = null
-  let recentInvoices: typeof invoices.$inferSelect[] = []
-  let recentWorkOrders: typeof workOrders.$inferSelect[] = []
-  
-  try {
-    tenantData = await db.query.tenants.findFirst({
-      where: eq(tenants.id, tenantId),
-    })
-    
-    if (tenantData) {
-      activeLease = await db.query.leases.findFirst({
-        where: and(eq(leases.tenantId, tenantId), eq(leases.status, "active")),
-      })
-      
-      // Get invoices through the lease relationship
-      if (activeLease) {
-        recentInvoices = await db
-          .select()
-          .from(invoices)
-          .where(eq(invoices.leaseId, activeLease.id))
-          .orderBy(desc(invoices.createdAt))
-          .limit(5)
-      }
-        
-      recentWorkOrders = await db
-        .select()
-        .from(workOrders)
-        .where(eq(workOrders.tenantId, tenantId))
-        .orderBy(desc(workOrders.createdAt))
-        .limit(5)
+  // Greeting patterns
+  if (/^(hi|hello|hey|good\s*(morning|afternoon|evening)|howdy)[\s!?.]*$/i.test(lowerMessage) || 
+      lowerMessage.includes("hello") || lowerMessage.includes("hi there")) {
+    return {
+      response: `Hello! 👋 I'm your Tenant Relations Assistant. How can I help you today?\n\nI can assist you with:\n• **Lease Information** - View your lease details\n• **Payments & Invoices** - Check dues and payment history\n• **Maintenance Requests** - Report issues or check status\n• **Mall Information** - Hours, contacts, and policies\n\nJust type your question or use the quick buttons below!`,
+      confidence: 0.95,
+      actionsTaken: ["greeting"],
+      requiresApproval: false,
     }
-  } catch (e) {
-    console.log("Could not fetch tenant context:", e)
   }
   
   // Lease-related queries
-  if (lowerMessage.includes("lease") || lowerMessage.includes("rent") || lowerMessage.includes("agreement")) {
-    if (activeLease) {
-      const endDate = new Date(activeLease.endDate).toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })
-      const rent = parseFloat(activeLease.baseRent || "0").toLocaleString("en-IN")
-      return {
-        response: `Here are your lease details:\n\n**Unit:** ${activeLease.unitNumber}\n**Area:** ${activeLease.areaSqft} sq.ft\n**Monthly Rent:** ₹${rent}\n**Lease End Date:** ${endDate}\n**Status:** ${activeLease.status}\n\nIf you need a copy of your lease agreement or have questions about renewal, please contact mall management directly.`,
-        confidence: 0.9,
-        actionsTaken: ["fetch_lease_details"],
-        requiresApproval: false,
-      }
-    }
+  if (lowerMessage.includes("lease") || lowerMessage.includes("agreement") || 
+      lowerMessage.includes("contract") || lowerMessage.includes("renewal") ||
+      (lowerMessage.includes("rent") && (lowerMessage.includes("detail") || lowerMessage.includes("how much")))) {
     return {
-      response: "I couldn't find an active lease on your account. Please contact mall management for assistance with lease-related inquiries.",
-      confidence: 0.7,
-      actionsTaken: [],
-      requiresApproval: false,
-    }
-  }
-  
-  // Invoice/payment queries
-  if (lowerMessage.includes("invoice") || lowerMessage.includes("payment") || lowerMessage.includes("bill") || lowerMessage.includes("due")) {
-    if (recentInvoices.length > 0) {
-      const pendingInvoices = recentInvoices.filter(i => i.status === "pending" || i.status === "overdue")
-      if (pendingInvoices.length > 0) {
-        const totalDue = pendingInvoices.reduce((sum, i) => sum + parseFloat(i.totalAmount || "0"), 0)
-        return {
-          response: `You have **${pendingInvoices.length} pending invoice(s)** with a total amount of **₹${totalDue.toLocaleString("en-IN")}**.\n\nPlease make payments before the due date to avoid late fees. You can view all your invoices in the Financials tab of your tenant dashboard.`,
-          confidence: 0.85,
-          actionsTaken: ["fetch_invoice_summary"],
-          requiresApproval: false,
-        }
-      }
-      return {
-        response: "Great news! You have no pending invoices. All your payments are up to date. Thank you for your timely payments!",
-        confidence: 0.9,
-        actionsTaken: ["fetch_invoice_summary"],
-        requiresApproval: false,
-      }
-    }
-    return {
-      response: "I couldn't find any invoice records. If you believe this is an error, please contact the accounts department.",
-      confidence: 0.7,
-      actionsTaken: [],
-      requiresApproval: false,
-    }
-  }
-  
-  // Maintenance/work order queries
-  if (lowerMessage.includes("maintenance") || lowerMessage.includes("repair") || lowerMessage.includes("fix") || lowerMessage.includes("broken") || lowerMessage.includes("issue") || lowerMessage.includes("problem") || lowerMessage.includes("work order")) {
-    if (lowerMessage.includes("status") || lowerMessage.includes("check") || lowerMessage.includes("update")) {
-      const openOrders = recentWorkOrders.filter(w => w.status === "open" || w.status === "in_progress")
-      if (openOrders.length > 0) {
-        const orderList = openOrders.map(w => `• **${w.workOrderNumber}**: ${w.title} (${w.status})`).join("\n")
-        return {
-          response: `Here are your active work orders:\n\n${orderList}\n\nOur maintenance team is working on these. You'll be notified when they're resolved.`,
-          confidence: 0.85,
-          actionsTaken: ["fetch_work_order_status"],
-          requiresApproval: false,
-        }
-      }
-      return {
-        response: "You don't have any active maintenance requests. If you need to report an issue, please use the 'Report Issue' button or describe the problem here.",
-        confidence: 0.85,
-        actionsTaken: ["fetch_work_order_status"],
-        requiresApproval: false,
-      }
-    }
-    return {
-      response: "I understand you're experiencing an issue. To help you better, please provide:\n\n1. **Location** of the problem (e.g., store entrance, restroom)\n2. **Description** of the issue\n3. **Urgency** level (routine, urgent, or emergency)\n\nAlternatively, you can click the 'Report Issue' button to create a formal maintenance request.",
-      confidence: 0.8,
-      actionsTaken: [],
-      requiresApproval: false,
-    }
-  }
-  
-  // Mall hours query
-  if (lowerMessage.includes("hour") || lowerMessage.includes("timing") || lowerMessage.includes("open") || lowerMessage.includes("close")) {
-    return {
-      response: "**Mall Operating Hours:**\n\n• **Monday - Friday:** 10:00 AM - 10:00 PM\n• **Saturday - Sunday:** 10:00 AM - 11:00 PM\n• **Public Holidays:** 11:00 AM - 10:00 PM\n\nPlease note that loading/unloading is permitted between 6:00 AM - 10:00 AM only.",
+      response: `**Lease Information:**\n\nTo view your complete lease details, please visit the **Lease** tab in your tenant dashboard where you can find:\n\n• Unit number and floor details\n• Lease start and end dates\n• Monthly rent amount\n• Security deposit information\n• Terms and conditions\n\n**For lease renewal or modifications**, please contact our leasing team:\n📞 +91-98765-43212\n📧 leasing@mall.com\n\nWould you like help with anything else?`,
       confidence: 0.9,
-      actionsTaken: ["fetch_mall_hours"],
+      actionsTaken: ["provide_lease_info"],
       requiresApproval: false,
     }
   }
   
-  // Contact/help queries
-  if (lowerMessage.includes("contact") || lowerMessage.includes("help") || lowerMessage.includes("support") || lowerMessage.includes("manager") || lowerMessage.includes("emergency")) {
+  // Invoice/payment/billing queries
+  if (lowerMessage.includes("invoice") || lowerMessage.includes("payment") || 
+      lowerMessage.includes("bill") || lowerMessage.includes("due") ||
+      lowerMessage.includes("outstanding") || lowerMessage.includes("balance") ||
+      lowerMessage.includes("pay") || lowerMessage.includes("receipt")) {
     return {
-      response: "**Mall Management Contacts:**\n\n• **General Inquiries:** +91-98765-43210\n• **Maintenance (24/7):** +91-98765-43211\n• **Accounts/Billing:** accounts@mall.com\n• **Emergency:** +91-98765-00000\n\n**Office Hours:** Monday - Saturday, 9:00 AM - 6:00 PM",
+      response: `**Payment & Invoice Information:**\n\nYou can view all your invoices and payment history in the **Financials** tab of your dashboard.\n\n**Payment Methods:**\n• Bank Transfer (NEFT/RTGS)\n• Cheque (payable to "Mall Management Pvt Ltd")\n• Online Payment Portal\n\n**Important Dates:**\n• Rent Due: 5th of every month\n• Late Fee: 2% after 10th\n• Grace Period: 5 days\n\n**For payment queries:**\n📞 +91-98765-43213\n📧 accounts@mall.com\n\nNeed help with something specific?`,
       confidence: 0.9,
+      actionsTaken: ["provide_payment_info"],
+      requiresApproval: false,
+    }
+  }
+  
+  // Maintenance/repair/issue queries
+  if (lowerMessage.includes("maintenance") || lowerMessage.includes("repair") || 
+      lowerMessage.includes("fix") || lowerMessage.includes("broken") ||
+      lowerMessage.includes("not working") || lowerMessage.includes("damage") ||
+      lowerMessage.includes("leak") || lowerMessage.includes("ac") ||
+      lowerMessage.includes("electrical") || lowerMessage.includes("plumbing")) {
+    return {
+      response: `**Maintenance Request:**\n\nI can help you report a maintenance issue. To submit a formal request:\n\n1. Click the **"Report Issue"** button below, or\n2. Visit the **Work Orders** section in your dashboard\n\n**For urgent issues, contact:**\n📞 Maintenance Hotline: +91-98765-43211 (24/7)\n\n**Please provide when reporting:**\n• Location of the issue\n• Description of the problem\n• Photos if possible\n• Preferred time for inspection\n\n**Response Times:**\n• Emergency: 1-2 hours\n• Urgent: Same day\n• Routine: 24-48 hours\n\nWhat type of issue are you experiencing?`,
+      confidence: 0.9,
+      actionsTaken: ["provide_maintenance_info"],
+      requiresApproval: false,
+    }
+  }
+  
+  // Work order status queries
+  if (lowerMessage.includes("work order") || lowerMessage.includes("request status") ||
+      (lowerMessage.includes("status") && (lowerMessage.includes("repair") || lowerMessage.includes("maintenance")))) {
+    return {
+      response: `**Work Order Status:**\n\nTo check the status of your maintenance requests:\n\n1. Go to **Work Orders** tab in your dashboard\n2. You'll see all your requests with current status:\n   • 🟡 **Open** - Request received\n   • 🔵 **In Progress** - Being worked on\n   • 🟢 **Resolved** - Completed\n   • ⚫ **Closed** - Verified & closed\n\nYou will also receive email/SMS notifications for status updates.\n\n**Need to follow up?**\n📞 +91-98765-43211\n\nAnything else I can help with?`,
+      confidence: 0.85,
+      actionsTaken: ["provide_work_order_info"],
+      requiresApproval: false,
+    }
+  }
+  
+  // Mall hours/timing queries
+  if (lowerMessage.includes("hour") || lowerMessage.includes("timing") || 
+      lowerMessage.includes("open") || lowerMessage.includes("close") ||
+      lowerMessage.includes("time") || lowerMessage.includes("schedule")) {
+    return {
+      response: `**Mall Operating Hours:**\n\n🕐 **Regular Hours:**\n• Monday - Friday: 10:00 AM - 10:00 PM\n• Saturday - Sunday: 10:00 AM - 11:00 PM\n• Public Holidays: 11:00 AM - 10:00 PM\n\n🚚 **Loading/Unloading:**\n• Permitted: 6:00 AM - 10:00 AM only\n• Dock area access required\n\n🔐 **Store Access (Non-operating hours):**\n• Contact security: +91-98765-43214\n• Prior approval required\n\n**Upcoming Changes:**\nExtended hours during festive seasons will be communicated via email.\n\nAnything else you'd like to know?`,
+      confidence: 0.95,
+      actionsTaken: ["provide_mall_hours"],
+      requiresApproval: false,
+    }
+  }
+  
+  // Contact/help/support queries
+  if (lowerMessage.includes("contact") || lowerMessage.includes("phone") ||
+      lowerMessage.includes("email") || lowerMessage.includes("support") ||
+      lowerMessage.includes("help") || lowerMessage.includes("manager") ||
+      lowerMessage.includes("emergency") || lowerMessage.includes("call")) {
+    return {
+      response: `**Mall Management Contacts:**\n\n📞 **Phone Numbers:**\n• General Inquiries: +91-98765-43210\n• Maintenance (24/7): +91-98765-43211\n• Leasing: +91-98765-43212\n• Accounts/Billing: +91-98765-43213\n• Security: +91-98765-43214\n• Emergency: +91-98765-00000\n\n📧 **Email:**\n• General: info@mall.com\n• Accounts: accounts@mall.com\n• Leasing: leasing@mall.com\n• Maintenance: maintenance@mall.com\n\n🏢 **Office Hours:**\nMonday - Saturday: 9:00 AM - 6:00 PM\n\n🚨 **Emergency?** Call +91-98765-00000 immediately!\n\nHow else can I assist you?`,
+      confidence: 0.95,
       actionsTaken: ["provide_contacts"],
       requiresApproval: false,
     }
   }
   
-  // Greeting
-  if (lowerMessage.includes("hello") || lowerMessage.includes("hi") || lowerMessage.includes("hey") || lowerMessage === "hi" || lowerMessage === "hello") {
-    const name = tenantData?.contactPerson || tenantData?.businessName || "there"
+  // Parking queries
+  if (lowerMessage.includes("parking") || lowerMessage.includes("vehicle") || lowerMessage.includes("car")) {
     return {
-      response: `Hello ${name}! 👋 I'm your Tenant Relations Assistant. How can I help you today?\n\nI can assist you with:\n• **Lease Information** - View your lease details\n• **Payments & Invoices** - Check dues and payment history\n• **Maintenance Requests** - Report issues or check status\n• **Mall Information** - Hours, contacts, and policies\n\nJust type your question or use the quick buttons below!`,
-      confidence: 0.95,
-      actionsTaken: [],
+      response: `**Parking Information:**\n\n🚗 **Tenant Parking:**\n• Dedicated parking passes available\n• Apply through mall management office\n• Monthly pass: ₹2,000\n\n🅿️ **Customer Parking:**\n• First 2 hours free with purchase\n• Validation at store POS\n\n📍 **Locations:**\n• Basement B1 & B2\n• Ground floor (limited)\n\n**For parking queries:**\n📞 +91-98765-43215\n\nNeed help with something else?`,
+      confidence: 0.9,
+      actionsTaken: ["provide_parking_info"],
       requiresApproval: false,
     }
   }
   
-  // Default response
+  // Thank you responses
+  if (lowerMessage.includes("thank") || lowerMessage.includes("thanks") || lowerMessage.includes("thx")) {
+    return {
+      response: `You're welcome! 😊 I'm always here to help.\n\nIf you have any more questions, feel free to ask. Have a great day! 🌟`,
+      confidence: 0.95,
+      actionsTaken: ["acknowledge_thanks"],
+      requiresApproval: false,
+    }
+  }
+  
+  // Default response for unrecognized queries
   return {
-    response: "Thank you for your message. I'm here to help with:\n\n• Lease and rental inquiries\n• Invoice and payment questions\n• Maintenance requests\n• Mall information and policies\n\nCould you please provide more details about what you need help with? Or you can click one of the quick action buttons below.",
+    response: `Thank you for your message! I'm here to help with:\n\n• 📋 **Lease Information** - Details about your rental agreement\n• 💰 **Payments & Invoices** - Billing and payment queries\n• 🔧 **Maintenance** - Report issues or check repair status\n• 🕐 **Mall Hours** - Operating schedules\n• 📞 **Contacts** - Mall management numbers\n• 🅿️ **Parking** - Parking passes and info\n\nPlease try asking about one of these topics, or click the quick action buttons below for common requests.\n\n**Need immediate help?** Call +91-98765-43210`,
     confidence: 0.6,
-    actionsTaken: [],
+    actionsTaken: ["provide_help_menu"],
     requiresApproval: false,
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const body = await request.json()
-    const { propertyId, tenantId, message, conversationId } = body
+    const { message } = body
 
-    if (!propertyId || !message) {
+    if (!message) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Message is required" },
         { status: 400 }
       )
     }
 
-    // Get or create conversation
-    let conversation = conversationId
-      ? await db.query.conversations.findFirst({
-          where: eq(conversations.id, conversationId),
-        })
-      : null
-
-    if (!conversation) {
-      const newConversationId = crypto.randomUUID()
-      await db.insert(conversations).values({
-        id: newConversationId,
-        propertyId,
-        tenantId: tenantId || null,
-        assignedAgent: "tenant_relations",
-        status: "active",
-        category: message.slice(0, 100),
-      })
-      conversation = await db.query.conversations.findFirst({
-        where: eq(conversations.id, newConversationId),
-      })
-    }
-
-    if (!conversation) {
-      return NextResponse.json(
-        { error: "Failed to create conversation" },
-        { status: 500 }
-      )
-    }
-
-    // Save user message
-    const userMessageId = crypto.randomUUID()
-    await db.insert(messages).values({
-      id: userMessageId,
-      conversationId: conversation.id,
-      senderType: tenantId ? "tenant" : "staff",
-      senderId: tenantId || session.user.id,
-      content: message,
-    })
-
-    // Generate smart response (works without AI API)
-    const result = await generateSmartResponse(
-      message,
-      tenantId || session.user.id,
-      propertyId
-    )
-
-    // Save assistant response
-    const assistantMessageId = crypto.randomUUID()
-    await db.insert(messages).values({
-      id: assistantMessageId,
-      conversationId: conversation.id,
-      senderType: "agent",
-      content: result.response,
-      metadata: {
-        confidence: result.confidence,
-        actionsTaken: result.actionsTaken,
-        requiresApproval: result.requiresApproval,
-      },
-    })
-
-    // Update conversation
-    await db
-      .update(conversations)
-      .set({
-        updatedAt: new Date(),
-      })
-      .where(eq(conversations.id, conversation.id))
+    // Generate rule-based response (no database dependency)
+    const result = generateRuleBasedResponse(message)
 
     return NextResponse.json({
-      conversationId: conversation.id,
-      messageId: assistantMessageId,
+      conversationId: crypto.randomUUID(),
+      messageId: crypto.randomUUID(),
       response: result.response,
       confidence: result.confidence,
       actionsTaken: result.actionsTaken,
@@ -272,52 +155,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth()
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const conversationId = searchParams.get("conversationId")
-
-    if (!conversationId) {
-      return NextResponse.json(
-        { error: "Conversation ID required" },
-        { status: 400 }
-      )
-    }
-
-    const conversation = await db.query.conversations.findFirst({
-      where: eq(conversations.id, conversationId),
-    })
-
-    if (!conversation) {
-      return NextResponse.json(
-        { error: "Conversation not found" },
-        { status: 404 }
-      )
-    }
-
-    const chatMessages = await db
-      .select()
-      .from(messages)
-      .where(eq(messages.conversationId, conversationId))
-      .orderBy(messages.createdAt)
-
-    return NextResponse.json({
-      conversation,
-      messages: chatMessages,
-    })
-  } catch (error) {
-    console.error("Get chat error:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
-  }
-}
-

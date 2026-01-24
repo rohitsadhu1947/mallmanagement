@@ -75,6 +75,7 @@ import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { tenantSchema, tenantUpdateSchema, type TenantFormData, type TenantUpdateFormData } from "@/lib/validations/tenant"
+import { usePropertyStore } from "@/stores/property-store"
 
 interface Tenant {
   id: string
@@ -144,6 +145,7 @@ interface Property {
 export default function TenantsPage() {
   const { toast } = useToast()
   const router = useRouter()
+  const { selectedProperty } = usePropertyStore()
   const [tenants, setTenants] = React.useState<Tenant[]>([])
   const [properties, setProperties] = React.useState<Property[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
@@ -203,11 +205,14 @@ export default function TenantsPage() {
     }
   }, [createForm])
 
-  // Fetch tenants from API
+  // Fetch tenants from API - filtered by selected property
   const fetchTenants = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/tenants")
+      const url = selectedProperty 
+        ? `/api/tenants?propertyId=${selectedProperty.id}`
+        : "/api/tenants"
+      const response = await fetch(url)
       if (!response.ok) throw new Error("Failed to fetch tenants")
       const result = await response.json()
       // Handle both { data: [] } format and direct array format for backwards compatibility
@@ -228,6 +233,13 @@ export default function TenantsPage() {
     fetchTenants()
     fetchProperties()
   }, [fetchTenants, fetchProperties])
+
+  // Re-fetch tenants when selected property changes
+  React.useEffect(() => {
+    if (selectedProperty) {
+      fetchTenants()
+    }
+  }, [selectedProperty, fetchTenants])
 
   // Handle form submission for create
   const handleSubmit = async (data: TenantFormData) => {
