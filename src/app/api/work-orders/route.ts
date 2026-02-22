@@ -13,11 +13,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error }, { status: 403 })
     }
 
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const propertyId = searchParams.get("propertyId")
     const tenantId = searchParams.get("tenantId")
@@ -87,9 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const userId = session?.user?.id
 
     const body = await request.json()
     const {
@@ -126,7 +119,7 @@ export async function POST(request: NextRequest) {
       description,
       location,
       status: "open",
-      createdBy: session.user.id,
+      createdBy: userId,
     })
 
     const newWorkOrder = await db.query.workOrders.findFirst({

@@ -37,39 +37,8 @@ interface Anomaly {
   actionRoute?: string
 }
 
-// Mock anomalies - will be replaced with real data
-const mockAnomalies: Anomaly[] = [
-  {
-    id: "1",
-    type: "warning",
-    title: "Collection Rate Drop",
-    description: "Collection rate dropped 5% compared to last week average",
-    detectedAt: new Date(Date.now() - 15 * 60 * 1000),
-    agentType: "financial_analyst",
-    action: "View Details",
-    actionRoute: "/analytics",
-  },
-  {
-    id: "2",
-    type: "critical",
-    title: "HVAC System Alert",
-    description: "Floor 3 AC unit showing unusual power consumption",
-    detectedAt: new Date(Date.now() - 45 * 60 * 1000),
-    agentType: "maintenance_coordinator",
-    action: "Create Work Order",
-    actionRoute: "work_order_dialog",
-  },
-  {
-    id: "3",
-    type: "info",
-    title: "Lease Expiry Coming",
-    description: "3 leases expiring in next 30 days need attention",
-    detectedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    agentType: "space_optimizer",
-    action: "Review Leases",
-    actionRoute: "/tenants",
-  },
-]
+// Anomalies will be populated from real agent analysis
+const activeAnomalies: Anomaly[] = []
 
 const getAnomalyIcon = (type: string) => {
   switch (type) {
@@ -157,12 +126,19 @@ export function AnomalyAlerts() {
               Active Insights
             </CardTitle>
             <Badge variant="outline" className="text-xs">
-              {mockAnomalies.length} Active
+              {activeAnomalies.length} Active
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {mockAnomalies.map((anomaly) => (
+          {activeAnomalies.length === 0 && (
+            <div className="text-center py-6 text-muted-foreground">
+              <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No active insights</p>
+              <p className="text-xs mt-1">Anomalies will appear here when detected by the system</p>
+            </div>
+          )}
+          {activeAnomalies.map((anomaly) => (
             <div
               key={anomaly.id}
               className={cn(

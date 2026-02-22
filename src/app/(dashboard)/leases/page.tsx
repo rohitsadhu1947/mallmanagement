@@ -55,6 +55,11 @@ import {
   XCircle,
   FileSignature,
   IndianRupee,
+  Wifi,
+  WifiOff,
+  Store,
+  CheckCircle,
+  Zap,
 } from "lucide-react"
 import { formatCurrency, cn } from "@/lib/utils"
 import Link from "next/link"
@@ -155,7 +160,50 @@ export default function LeasesPage() {
     terminationNoticeDays: "90",
     fitOutPeriod: "",
     rentFreePeriod: "",
+    // POS Integration fields (only for revenue_share & hybrid)
+    posProvider: "",
+    posStoreId: "",
+    posApiKey: "",
+    posSyncFrequency: "daily",
   })
+
+  // POS connection test state
+  const [posTestStatus, setPosTestStatus] = React.useState<"idle" | "testing" | "success" | "error">("idle")
+  const [posTestMessage, setPosTestMessage] = React.useState("")
+
+  const isRevShareLease = leaseForm.leaseType === "revenue_share" || leaseForm.leaseType === "hybrid" || leaseForm.leaseType === "minimum_guarantee"
+
+  const handleTestPOSConnection = async () => {
+    if (!leaseForm.posProvider || !leaseForm.posStoreId || !leaseForm.posApiKey) {
+      setPosTestStatus("error")
+      setPosTestMessage("Please fill in provider, store ID, and API key")
+      return
+    }
+    setPosTestStatus("testing")
+    setPosTestMessage("")
+    try {
+      const res = await fetch("/api/pos/test-connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: leaseForm.posProvider,
+          storeId: leaseForm.posStoreId,
+          apiKey: leaseForm.posApiKey,
+        }),
+      })
+      const result = await res.json()
+      if (result.success) {
+        setPosTestStatus("success")
+        setPosTestMessage(result.data.message || "Connection successful!")
+      } else {
+        setPosTestStatus("error")
+        setPosTestMessage(result.error || "Connection failed")
+      }
+    } catch {
+      setPosTestStatus("error")
+      setPosTestMessage("Failed to test connection")
+    }
+  }
 
   // Fetch leases
   const fetchLeases = React.useCallback(async () => {
@@ -251,6 +299,8 @@ export default function LeasesPage() {
 
       toast({ title: "Success", description: "Lease created successfully!" })
       setCreateDialogOpen(false)
+      setPosTestStatus("idle")
+      setPosTestMessage("")
       setLeaseForm({
         tenantId: "",
         propertyId: "",
@@ -271,6 +321,10 @@ export default function LeasesPage() {
         terminationNoticeDays: "90",
         fitOutPeriod: "",
         rentFreePeriod: "",
+        posProvider: "",
+        posStoreId: "",
+        posApiKey: "",
+        posSyncFrequency: "daily",
       })
       fetchLeases()
     } catch (error) {
@@ -339,10 +393,15 @@ export default function LeasesPage() {
                 </DialogHeader>
 
                 <Tabs defaultValue="basic" className="mt-4">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className={cn("grid w-full", isRevShareLease ? "grid-cols-4" : "grid-cols-3")}>
                     <TabsTrigger value="basic">Basic Info</TabsTrigger>
                     <TabsTrigger value="financial">Financial Terms</TabsTrigger>
                     <TabsTrigger value="terms">Lease Terms</TabsTrigger>
+                    {isRevShareLease && (
+                      <TabsTrigger value="pos" className="gap-1">
+                        <Wifi className="h-3 w-3" /> POS Integration
+                      </TabsTrigger>
+                    )}
                   </TabsList>
 
                   {/* Basic Info Tab */}
@@ -511,6 +570,103 @@ export default function LeasesPage() {
                       </div>
                     </div>
                   </TabsContent>
+
+                  {/* POS Integration Tab — Only for revenue_share/hybrid leases */}
+                  {isRevShareLease && (
+                    <TabsContent value="pos" className="space-y-4 mt-4">
+                      <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 mb-2">
+                        <div className="flex items-center gap-2 text-sm text-blue-700">
+                          <Zap className="h-4 w-4" />
+                          <span className="font-medium">Connect POS to auto-calculate revenue share from actual sales data</span>
+                        </div>
+                        <p className="text-xs text-blue-600 mt-1 ml-6">
+                          Once connected, daily sales data is pulled automatically and revenue share invoices are generated from real POS transactions.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">POS Provider</label>
+                        <Select value={leaseForm.posProvider} onValueChange={(v) => { setLeaseForm({...leaseForm, posProvider: v}); setPosTestStatus("idle"); }}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select POS system" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Indian Providers</div>
+                            <SelectItem value="pine_labs">🌲 Pine Labs</SelectItem>
+                            <SelectItem value="razorpay_pos">⚡ Razorpay POS</SelectItem>
+                            <SelectItem value="petpooja">🍽️ Petpooja</SelectItem>
+                            <SelectItem value="posist">🏪 POSist</SelectItem>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-1">Global Providers</div>
+                            <SelectItem value="shopify">🛍️ Shopify POS</SelectItem>
+                            <SelectItem value="square">🟦 Square</SelectItem>
+                            <SelectItem value="lightspeed">💡 Lightspeed</SelectItem>
+                            <SelectItem value="vend">🏷️ Vend</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Store ID / Location ID</label>
+                          <Input
+                            value={leaseForm.posStoreId}
+                            onChange={(e) => { setLeaseForm({...leaseForm, posStoreId: e.target.value}); setPosTestStatus("idle"); }}
+                            placeholder="e.g., store-123 or LOC-456"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">API Key / Access Token</label>
+                          <Input
+                            type="password"
+                            value={leaseForm.posApiKey}
+                            onChange={(e) => { setLeaseForm({...leaseForm, posApiKey: e.target.value}); setPosTestStatus("idle"); }}
+                            placeholder="Enter API key"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Sync Frequency</label>
+                        <Select value={leaseForm.posSyncFrequency} onValueChange={(v) => setLeaseForm({...leaseForm, posSyncFrequency: v})}>
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="real_time">Real-time</SelectItem>
+                            <SelectItem value="hourly">Hourly</SelectItem>
+                            <SelectItem value="daily">Daily</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Test Connection */}
+                      <div className="flex items-center gap-3 pt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleTestPOSConnection}
+                          disabled={posTestStatus === "testing" || !leaseForm.posProvider || !leaseForm.posStoreId || !leaseForm.posApiKey}
+                          className="gap-2"
+                        >
+                          {posTestStatus === "testing" ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : posTestStatus === "success" ? (
+                            <CheckCircle className="h-4 w-4 text-emerald-500" />
+                          ) : posTestStatus === "error" ? (
+                            <WifiOff className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <Wifi className="h-4 w-4" />
+                          )}
+                          {posTestStatus === "testing" ? "Testing..." : "Test Connection"}
+                        </Button>
+                        {posTestMessage && (
+                          <span className={cn("text-sm", posTestStatus === "success" ? "text-emerald-600" : "text-red-600")}>
+                            {posTestMessage}
+                          </span>
+                        )}
+                      </div>
+                    </TabsContent>
+                  )}
                 </Tabs>
 
                 <DialogFooter className="mt-6">

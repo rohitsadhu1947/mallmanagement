@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { properties, dailyMetrics } from "@/lib/db/schema"
 import { eq, desc, sql, and } from "drizzle-orm"
@@ -11,11 +10,6 @@ export async function GET(request: NextRequest) {
     const { authorized, error } = await requirePermission(PERMISSIONS.PROPERTIES_VIEW)
     if (!authorized) {
       return NextResponse.json({ error }, { status: 403 })
-    }
-
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -108,11 +102,6 @@ export async function POST(request: NextRequest) {
     const { authorized, error } = await requirePermission(PERMISSIONS.PROPERTIES_CREATE)
     if (!authorized) {
       return NextResponse.json({ error }, { status: 403 })
-    }
-
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await request.json()

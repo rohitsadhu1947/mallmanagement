@@ -58,88 +58,8 @@ interface PendingApproval {
   data: Record<string, unknown>
 }
 
-const mockPendingApprovals: PendingApproval[] = [
-  {
-    id: "1",
-    agentId: "maintenance-coordinator",
-    agentName: "Maintenance Coordinator",
-    agentType: "maintenance_coordinator",
-    actionType: "schedule_maintenance",
-    title: "Schedule Preventive Maintenance for HVAC Unit #4",
-    description: "HVAC Unit #4 showing degraded performance. Scheduling preventive maintenance to avoid failure.",
-    reasoning: "Health score dropped to 73%. Historical data shows similar units failed within 2 weeks of reaching this threshold. Cost of preventive maintenance: ₹15,000. Cost of emergency repair: ₹85,000+.",
-    confidence: 0.73,
-    impact: "high",
-    createdAt: new Date(Date.now() - 45 * 60 * 1000),
-    entityType: "equipment",
-    entityId: "eq-hvac-004",
-    data: { estimatedCost: 15000, scheduledDate: "2024-01-20", vendor: "CoolTech Services" },
-  },
-  {
-    id: "2",
-    agentId: "space-optimizer",
-    agentName: "Space Optimization Strategist",
-    agentType: "space_optimizer",
-    actionType: "lease_non_renewal",
-    title: "Recommend Non-Renewal: Tech World Electronics",
-    description: "Lease expiring in 60 days. Tenant underperforming compared to mall average.",
-    reasoning: "Revenue per sq.ft: ₹800 (mall avg: ₹1,200). Category performance below benchmark for 6 months. Potential replacement with F&B tenant could increase revenue by ₹70,000/month.",
-    confidence: 0.68,
-    impact: "critical",
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    entityType: "lease",
-    entityId: "lease-twl-105",
-    data: { currentRent: 100000, projectedNewRent: 170000, expiryDate: "2024-03-15" },
-  },
-  {
-    id: "3",
-    agentId: "financial-analyst",
-    agentName: "Financial Analyst",
-    agentType: "financial_analyst",
-    actionType: "escalate_collection",
-    title: "Escalate Collection: Café Coffee Day",
-    description: "Invoice overdue by 15 days. Previous reminders ineffective.",
-    reasoning: "3 gentle reminders sent without response. Payment pattern shows 85% probability of 30+ day delay. Recommending escalation to formal collection notice.",
-    confidence: 0.82,
-    impact: "medium",
-    createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
-    entityType: "invoice",
-    entityId: "inv-2024-001235",
-    data: { amount: 153400, dueDate: "2024-01-05", remindersSent: 3 },
-  },
-  {
-    id: "4",
-    agentId: "financial-analyst",
-    agentName: "Financial Analyst",
-    agentType: "financial_analyst",
-    actionType: "expense_approval",
-    title: "Approve Expense: Emergency Generator Repair",
-    description: "Emergency repair expense exceeding auto-approval threshold.",
-    reasoning: "Generator #2 failure required emergency repair. Expense of ₹75,000 exceeds ₹50,000 auto-approval limit. Vendor quote verified against market rates (15% below average).",
-    confidence: 0.91,
-    impact: "high",
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    entityType: "expense",
-    entityId: "exp-gen-repair",
-    data: { amount: 75000, vendor: "PowerGen Solutions", marketRate: 88000 },
-  },
-  {
-    id: "5",
-    agentId: "operations-commander",
-    agentName: "Operations Commander",
-    agentType: "operations_commander",
-    actionType: "staff_alert",
-    title: "Security Alert: Unusual After-Hours Activity",
-    description: "Motion detected in restricted area after business hours.",
-    reasoning: "CCTV motion detected at 11:45 PM in Zone B storage area. No scheduled maintenance or authorized access logged. Recommending security team dispatch.",
-    confidence: 0.79,
-    impact: "critical",
-    createdAt: new Date(Date.now() - 30 * 60 * 1000),
-    entityType: "security",
-    entityId: "alert-sec-001",
-    data: { location: "Zone B Storage", timestamp: "23:45", cameraId: "CAM-B-12" },
-  },
-]
+// No mock data — approvals are fetched from the API
+const initialApprovals: PendingApproval[] = []
 
 const agentIcons: Record<string, React.ReactNode> = {
   operations_commander: <Activity className="h-4 w-4" />,
@@ -267,7 +187,7 @@ function ApprovalCard({
 
 export default function ApprovalsPage() {
   const { toast } = useToast()
-  const [approvals, setApprovals] = React.useState<PendingApproval[]>(mockPendingApprovals)
+  const [approvals, setApprovals] = React.useState<PendingApproval[]>(initialApprovals)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [agentFilter, setAgentFilter] = React.useState<string>("all")
   const [impactFilter, setImpactFilter] = React.useState<string>("all")
@@ -465,7 +385,7 @@ export default function ApprovalsPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Approved Today</p>
-              <p className="text-2xl font-bold">23</p>
+              <p className="text-2xl font-bold">0</p>
             </div>
           </CardContent>
         </Card>

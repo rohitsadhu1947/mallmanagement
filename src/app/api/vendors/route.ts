@@ -31,13 +31,11 @@ export async function GET(request: NextRequest) {
   }
 
   const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const organizationId_fallback = session?.user?.organizationId
 
   try {
     const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get("organizationId") || session.user.organizationId
+    const organizationId = searchParams.get("organizationId") || organizationId_fallback
     const category = searchParams.get("category")
     const status = searchParams.get("status")
     const type = searchParams.get("type")
@@ -66,11 +64,6 @@ export async function POST(request: NextRequest) {
   const { authorized, error } = await requirePermission(PERMISSIONS.VENDORS_CREATE)
   if (!authorized) {
     return NextResponse.json({ error }, { status: 403 })
-  }
-
-  const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {

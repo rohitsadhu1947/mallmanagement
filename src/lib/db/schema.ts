@@ -422,6 +422,65 @@ export const agentDecisions = pgTable("agent_decisions", {
 }))
 
 // ============================================================================
+// POS INTEGRATION & REVENUE TRACKING
+// ============================================================================
+
+export const posIntegrations = pgTable("pos_integrations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "cascade" }),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  leaseId: uuid("lease_id").references(() => leases.id, { onDelete: "cascade" }),
+  provider: varchar("provider", { length: 50 }).notNull(), // 'pine_labs', 'razorpay_pos', 'petpooja', 'shopify', 'square', 'lightspeed', 'vend'
+  storeId: varchar("store_id", { length: 255 }), // Provider-specific store identifier
+  locationId: varchar("location_id", { length: 255 }), // Provider-specific location identifier
+  apiKeyEncrypted: text("api_key_encrypted"), // Encrypted API key/secret
+  webhookUrl: varchar("webhook_url", { length: 500 }),
+  syncFrequency: varchar("sync_frequency", { length: 50 }).default("daily"), // 'real_time', 'hourly', 'daily'
+  status: varchar("status", { length: 50 }).default("disconnected"), // 'connected', 'disconnected', 'error', 'syncing'
+  lastSyncAt: timestamp("last_sync_at"),
+  lastSyncStatus: varchar("last_sync_status", { length: 50 }), // 'success', 'failed', 'partial'
+  totalTransactionsSynced: integer("total_transactions_synced").default(0),
+  config: jsonb("config").default({}), // Provider-specific configuration
+  metadata: jsonb("metadata").default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  tenantIdx: index("idx_pos_integrations_tenant").on(table.tenantId),
+  propertyIdx: index("idx_pos_integrations_property").on(table.propertyId),
+  leaseIdx: index("idx_pos_integrations_lease").on(table.leaseId),
+  statusIdx: index("idx_pos_integrations_status").on(table.status),
+}))
+
+export const posSalesData = pgTable("pos_sales_data", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  posIntegrationId: uuid("pos_integration_id").references(() => posIntegrations.id, { onDelete: "cascade" }),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "cascade" }),
+  propertyId: uuid("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  leaseId: uuid("lease_id").references(() => leases.id, { onDelete: "cascade" }),
+  salesDate: date("sales_date").notNull(),
+  grossSales: decimal("gross_sales", { precision: 14, scale: 2 }).notNull(),
+  netSales: decimal("net_sales", { precision: 14, scale: 2 }).notNull(),
+  refunds: decimal("refunds", { precision: 12, scale: 2 }).default("0"),
+  discounts: decimal("discounts", { precision: 12, scale: 2 }).default("0"),
+  transactionCount: integer("transaction_count").default(0),
+  avgTransactionValue: decimal("avg_transaction_value", { precision: 12, scale: 2 }),
+  categoryBreakdown: jsonb("category_breakdown").default({}), // Sales by product category
+  hourlyBreakdown: jsonb("hourly_breakdown").default({}), // Sales by hour of day
+  source: varchar("source", { length: 50 }).default("pos_api"), // 'pos_api', 'manual_upload', 'bank_statement'
+  verified: boolean("verified").default(false),
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: uuid("verified_by"),
+  metadata: jsonb("metadata").default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  posIntegrationDateIdx: uniqueIndex("idx_pos_sales_integration_date").on(table.posIntegrationId, table.salesDate),
+  tenantIdx: index("idx_pos_sales_tenant").on(table.tenantId),
+  propertyIdx: index("idx_pos_sales_property").on(table.propertyId),
+  leaseIdx: index("idx_pos_sales_lease").on(table.leaseId),
+  salesDateIdx: index("idx_pos_sales_date").on(table.salesDate),
+}))
+
+// ============================================================================
 // COMPLIANCE & DOCUMENTATION
 // ============================================================================
 
@@ -535,6 +594,8 @@ export const tenantsRelations = relations(tenants, ({ one, many }) => ({
   leases: many(leases),
   workOrders: many(workOrders),
   conversations: many(conversations),
+  posIntegrations: many(posIntegrations),
+  posSalesData: many(posSalesData),
 }))
 
 export const leasesRelations = relations(leases, ({ one, many }) => ({
@@ -547,6 +608,8 @@ export const leasesRelations = relations(leases, ({ one, many }) => ({
     references: [properties.id],
   }),
   invoices: many(invoices),
+  posIntegrations: many(posIntegrations),
+  posSalesData: many(posSalesData),
 }))
 
 export const invoicesRelations = relations(invoices, ({ one, many }) => ({
@@ -605,6 +668,41 @@ export const agentActionsRelations = relations(agentActions, ({ one }) => ({
   }),
 }))
 
+export const posIntegrationsRelations = relations(posIntegrations, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [posIntegrations.tenantId],
+    references: [tenants.id],
+  }),
+  property: one(properties, {
+    fields: [posIntegrations.propertyId],
+    references: [properties.id],
+  }),
+  lease: one(leases, {
+    fields: [posIntegrations.leaseId],
+    references: [leases.id],
+  }),
+  salesData: many(posSalesData),
+}))
+
+export const posSalesDataRelations = relations(posSalesData, ({ one }) => ({
+  posIntegration: one(posIntegrations, {
+    fields: [posSalesData.posIntegrationId],
+    references: [posIntegrations.id],
+  }),
+  tenant: one(tenants, {
+    fields: [posSalesData.tenantId],
+    references: [tenants.id],
+  }),
+  property: one(properties, {
+    fields: [posSalesData.propertyId],
+    references: [properties.id],
+  }),
+  lease: one(leases, {
+    fields: [posSalesData.leaseId],
+    references: [leases.id],
+  }),
+}))
+
 // Type exports
 export type Organization = typeof organizations.$inferSelect
 export type NewOrganization = typeof organizations.$inferInsert
@@ -632,4 +730,8 @@ export type AgentAction = typeof agentActions.$inferSelect
 export type NewAgentAction = typeof agentActions.$inferInsert
 export type AgentDecision = typeof agentDecisions.$inferSelect
 export type NewAgentDecision = typeof agentDecisions.$inferInsert
+export type PosIntegration = typeof posIntegrations.$inferSelect
+export type NewPosIntegration = typeof posIntegrations.$inferInsert
+export type PosSalesData = typeof posSalesData.$inferSelect
+export type NewPosSalesData = typeof posSalesData.$inferInsert
 

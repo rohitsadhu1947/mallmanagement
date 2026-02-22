@@ -105,6 +105,7 @@ const invoiceTypeLabels: Record<string, string> = {
   cam: "CAM Charges",
   utility: "Utility",
   late_fee: "Late Fee",
+  revenue_share: "Revenue Share (POS)",
   other: "Other",
 }
 
@@ -453,6 +454,7 @@ function FinancialsPageContent() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="rent">Rent</SelectItem>
+                          <SelectItem value="revenue_share">Revenue Share (POS)</SelectItem>
                           <SelectItem value="cam">CAM Charges</SelectItem>
                           <SelectItem value="utility">Utility</SelectItem>
                           <SelectItem value="late_fee">Late Fee</SelectItem>
@@ -592,9 +594,9 @@ function FinancialsPageContent() {
                 <TrendingUp className="h-4 w-4 text-green-600" />
               </div>
               <div>
-                <p className="text-sm font-medium">Predicted Collections</p>
+                <p className="text-sm font-medium">Outstanding Amount</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatCurrency(stats.totalOutstanding * 0.8)} expected within 7 days (89% confidence)
+                  {formatCurrency(stats.totalOutstanding)} pending collection
                 </p>
               </div>
             </div>
@@ -721,9 +723,12 @@ function FinancialsPageContent() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">
+                        <Badge variant="outline" className={invoice.invoiceType === "revenue_share" ? "border-emerald-300 bg-emerald-50 text-emerald-700" : ""}>
                           {invoiceTypeLabels[invoice.invoiceType] || invoice.invoiceType}
                         </Badge>
+                        {invoice.invoiceType === "revenue_share" && (
+                          <div className="text-[10px] text-emerald-600 mt-0.5 font-medium">POS-Verified</div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="font-medium">{formatCurrency(invoice.totalAmount)}</div>

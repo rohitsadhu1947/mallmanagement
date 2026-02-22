@@ -10,49 +10,86 @@ import {
   CreditCard,
   Wrench,
   ThumbsUp,
-  TrendingUp,
-  TrendingDown,
-  Bot,
-  AlertTriangle,
 } from "lucide-react"
 
-// Mock data - will be replaced with real API calls
-const mockKPIs = {
-  occupancy: {
-    value: 94.5,
-    change: 2.3,
-    trend: "up" as const,
-    label: "Occupancy Rate",
-    suffix: "%",
-    icon: Building2,
-  },
-  collection: {
-    value: 87.2,
-    change: -1.5,
-    trend: "down" as const,
-    label: "Collection Rate",
-    suffix: "%",
-    icon: CreditCard,
-  },
-  workOrders: {
-    value: 12,
-    change: 3,
-    trend: "up" as const,
-    label: "Active Work Orders",
-    suffix: "",
-    icon: Wrench,
-  },
-  satisfaction: {
-    value: 4.2,
-    change: 0.3,
-    trend: "up" as const,
-    label: "Tenant Satisfaction",
-    suffix: "/5",
-    icon: ThumbsUp,
-  },
+interface DashboardData {
+  summary: {
+    tenants: { occupancyRate: number; total: number; active: number }
+    financials: { collectionRate: number; totalInvoices: number; paid: number; overdue: number }
+    workOrders: { open: number; inProgress: number; critical: number }
+    agents: { total: number; pending: number }
+  }
 }
 
 export function CommandCenter() {
+  const [data, setData] = React.useState<DashboardData | null>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState(false)
+
+  React.useEffect(() => {
+    async function fetchDashboard() {
+      try {
+        setLoading(true)
+        setError(false)
+        const res = await fetch("/api/dashboard")
+        if (!res.ok) throw new Error("Failed to fetch dashboard data")
+        const json = await res.json()
+        if (json.success && json.data) {
+          setData(json.data)
+        }
+      } catch {
+        setError(true)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDashboard()
+  }, [])
+
+  const summary = data?.summary
+
+  const occupancyValue = summary ? summary.tenants.occupancyRate : "\u2014"
+  const collectionValue = summary ? summary.financials.collectionRate : "\u2014"
+  const activeWorkOrders = summary
+    ? summary.workOrders.open + summary.workOrders.inProgress
+    : "\u2014"
+  const tenantTotal = summary ? summary.tenants.total : "\u2014"
+
+  // Derive status from real data
+  const hasOverdue = summary ? summary.financials.overdue > 0 : false
+  const hasCritical = summary ? summary.workOrders.critical > 0 : false
+
+  let statusLabel = "No data available"
+  let statusBg = "bg-gray-50"
+  let statusText = "text-gray-600"
+  let statusDot = "bg-gray-400"
+
+  if (loading) {
+    statusLabel = "Loading\u2026"
+  } else if (error) {
+    statusLabel = "Unable to load status"
+    statusBg = "bg-red-50"
+    statusText = "text-red-700"
+    statusDot = "bg-red-500"
+  } else if (summary) {
+    if (hasCritical) {
+      statusLabel = `${summary.workOrders.critical} critical work order${summary.workOrders.critical !== 1 ? "s" : ""}`
+      statusBg = "bg-red-50"
+      statusText = "text-red-700"
+      statusDot = "bg-red-500"
+    } else if (hasOverdue) {
+      statusLabel = `${summary.financials.overdue} overdue invoice${summary.financials.overdue !== 1 ? "s" : ""}`
+      statusBg = "bg-amber-50"
+      statusText = "text-amber-700"
+      statusDot = "bg-amber-500"
+    } else {
+      statusLabel = "All systems normal"
+      statusBg = "bg-green-50"
+      statusText = "text-green-700"
+      statusDot = "bg-green-500"
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -63,45 +100,35 @@ export function CommandCenter() {
             AI-powered operations hub for Metro Mall
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border bg-green-50 px-3 py-1.5 text-green-700">
-          <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-          <span className="text-sm font-medium">All agents operational</span>
+        <div className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 ${statusBg} ${statusText}`}>
+          <div className={`h-2 w-2 rounded-full ${statusDot} ${loading ? "animate-pulse" : ""}`} />
+          <span className="text-sm font-medium">{statusLabel}</span>
         </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KPICard
-          label={mockKPIs.occupancy.label}
-          value={mockKPIs.occupancy.value}
-          suffix={mockKPIs.occupancy.suffix}
-          change={mockKPIs.occupancy.change}
-          trend={mockKPIs.occupancy.trend}
-          icon={mockKPIs.occupancy.icon}
+          label="Occupancy Rate"
+          value={occupancyValue}
+          suffix={typeof occupancyValue === "number" ? "%" : ""}
+          icon={Building2}
         />
         <KPICard
-          label={mockKPIs.collection.label}
-          value={mockKPIs.collection.value}
-          suffix={mockKPIs.collection.suffix}
-          change={mockKPIs.collection.change}
-          trend={mockKPIs.collection.trend}
-          icon={mockKPIs.collection.icon}
+          label="Collection Rate"
+          value={collectionValue}
+          suffix={typeof collectionValue === "number" ? "%" : ""}
+          icon={CreditCard}
         />
         <KPICard
-          label={mockKPIs.workOrders.label}
-          value={mockKPIs.workOrders.value}
-          suffix={mockKPIs.workOrders.suffix}
-          change={mockKPIs.workOrders.change}
-          trend={mockKPIs.workOrders.trend}
-          icon={mockKPIs.workOrders.icon}
+          label="Active Work Orders"
+          value={activeWorkOrders}
+          icon={Wrench}
         />
         <KPICard
-          label={mockKPIs.satisfaction.label}
-          value={mockKPIs.satisfaction.value}
-          suffix={mockKPIs.satisfaction.suffix}
-          change={mockKPIs.satisfaction.change}
-          trend={mockKPIs.satisfaction.trend}
-          icon={mockKPIs.satisfaction.icon}
+          label="Total Tenants"
+          value={tenantTotal}
+          icon={ThumbsUp}
         />
       </div>
 

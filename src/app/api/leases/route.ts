@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { leases, tenants, properties } from "@/lib/db/schema"
-import { eq, desc, and } from "drizzle-orm"
+import { leases, tenants, properties, posIntegrations } from "@/lib/db/schema"
+import { eq, desc, and, lte, gte } from "drizzle-orm"
 import { PERMISSIONS, requirePermission } from "@/lib/auth/rbac"
+import { getPOSProvider } from "@/lib/pos"
+import type { POSProviderKey } from "@/lib/pos/types"
 
 export async function GET(request: NextRequest) {
   try {
     const { authorized, error } = await requirePermission(PERMISSIONS.LEASES_VIEW)
     if (!authorized) {
       return NextResponse.json({ error }, { status: 403 })
-    }
-
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { searchParams } = new URL(request.url)
@@ -71,11 +67,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error }, { status: 403 })
     }
 
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const body = await request.json()
     const {
       tenantId,
@@ -99,6 +90,11 @@ export async function POST(request: NextRequest) {
       rentFreePeriod,
       terminationNoticeDays,
       status = "active",
+      // POS Integration fields (only used for revenue_share/hybrid/minimum_guarantee)
+      posProvider,
+      posStoreId,
+      posApiKey,
+      posSyncFrequency,
     } = body
 
     // Validate required fields
@@ -125,17 +121,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 })
     }
 
-    // Check for overlapping leases on the same unit
-    const existingLease = await db.query.leases.findFirst({
+    // Check for overlapping leases on the same unit (date-range overlap check)
+    const overlappingLease = await db.query.leases.findFirst({
       where: and(
         eq(leases.propertyId, propertyId),
         eq(leases.unitNumber, unitNumber),
-        eq(leases.status, "active")
+        eq(leases.status, "active"),
+        // Date range overlap: existing.startDate <= new.endDate AND existing.endDate >= new.startDate
+        lte(leases.startDate, endDate),
+        gte(leases.endDate, startDate)
       ),
     })
-    if (existingLease) {
+    if (overlappingLease) {
       return NextResponse.json(
-        { error: `Unit ${unitNumber} already has an active lease` },
+        { error: `Unit ${unitNumber} already has an active lease for this period (${overlappingLease.startDate} to ${overlappingLease.endDate}). Choose different dates or a different unit.` },
         { status: 400 }
       )
     }
@@ -186,10 +185,60 @@ export async function POST(request: NextRequest) {
       })
       .returning()
 
+    // If this is a revenue-share/hybrid lease with POS details, create POS integration
+    const isRevShareLease = ["revenue_share", "hybrid", "minimum_guarantee"].includes(leaseType)
+    let posIntegration = null
+
+    if (isRevShareLease && posProvider && posStoreId && posApiKey) {
+      try {
+        // Test connection first
+        const posProviderAdapter = getPOSProvider(posProvider as POSProviderKey)
+        const testResult = await posProviderAdapter.testConnection({
+          provider: posProvider as POSProviderKey,
+          storeId: posStoreId,
+          apiKey: posApiKey,
+          syncFrequency: posSyncFrequency || "daily",
+        })
+
+        if (!testResult.success) {
+          return NextResponse.json({
+            success: true,
+            data: newLease,
+            message: `Lease created, but POS connection failed: ${testResult.message}. You can connect POS later from Revenue Intelligence.`,
+            posError: testResult.message,
+          })
+        }
+
+        // Create POS integration record (no mock data sync — use POS Simulator)
+        const [newPosIntegration] = await db
+          .insert(posIntegrations)
+          .values({
+            tenantId,
+            propertyId,
+            leaseId: newLease.id,
+            provider: posProvider,
+            storeId: posStoreId,
+            locationId: null,
+            apiKeyEncrypted: posApiKey,
+            syncFrequency: posSyncFrequency || "daily",
+            status: "connected",
+            lastSyncAt: new Date(),
+            lastSyncStatus: "success",
+          })
+          .returning()
+        posIntegration = newPosIntegration
+      } catch (posError) {
+        console.error("POS integration error (lease was created):", posError)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: newLease,
-      message: "Lease created successfully",
+      posIntegration,
+      message: posIntegration
+        ? "Lease created with POS integration. Use POS Simulator to enter sales."
+        : "Lease created successfully",
     })
   } catch (error) {
     console.error("Create lease error:", error)

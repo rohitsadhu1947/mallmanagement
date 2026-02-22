@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { tenants, leases } from "@/lib/db/schema"
 import { eq, desc, and } from "drizzle-orm"
 import { getCachedOrFetch, CACHE_KEYS, CACHE_TTL, invalidateEntityCache } from "@/lib/cache"
+import { PERMISSIONS, requirePermission } from "@/lib/auth/rbac"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { authorized, error } = await requirePermission(PERMISSIONS.TENANTS_VIEW)
+    if (!authorized) {
+      return NextResponse.json({ error }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)
@@ -25,8 +24,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Use caching for tenant list
-    const cacheKey = propertyId 
-      ? CACHE_KEYS.TENANT_LIST(propertyId) 
+    const cacheKey = propertyId
+      ? CACHE_KEYS.TENANT_LIST(propertyId)
       : `tenants:list:all:${status || "all"}:${category || "all"}`
 
     const result = await getCachedOrFetch(
@@ -55,8 +54,19 @@ export async function GET(request: NextRequest) {
           )
           .orderBy(desc(tenants.createdAt))
 
+        // Deduplicate: a tenant with multiple active leases appears as multiple rows
+        // Keep the first lease found for each tenant (most recent by join order)
+        const seen = new Set<string>()
+        const deduplicated: typeof tenantsWithLeases = []
+        for (const row of tenantsWithLeases) {
+          if (!seen.has(row.tenant.id)) {
+            seen.add(row.tenant.id)
+            deduplicated.push(row)
+          }
+        }
+
         // Transform the data
-        return tenantsWithLeases.map(({ tenant, activeLease }) => ({
+        return deduplicated.map(({ tenant, activeLease }) => ({
           ...tenant,
           lease: activeLease
             ? {
@@ -87,10 +97,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { authorized, error } = await requirePermission(PERMISSIONS.TENANTS_CREATE)
+    if (!authorized) {
+      return NextResponse.json({ error }, { status: 403 })
     }
 
     const body = await request.json()

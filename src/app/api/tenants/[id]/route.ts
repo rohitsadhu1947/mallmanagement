@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { tenants, leases, invoices, workOrders, properties } from "@/lib/db/schema"
 import { eq, and, desc, sql } from "drizzle-orm"
@@ -39,11 +38,6 @@ export async function GET(
     const { authorized, error } = await requirePermission(PERMISSIONS.TENANTS_VIEW)
     if (!authorized) {
       return NextResponse.json({ error }, { status: 403 })
-    }
-
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const tenantId = params.id
@@ -184,11 +178,6 @@ export async function PUT(
       return NextResponse.json({ error }, { status: 403 })
     }
 
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const tenantId = params.id
 
     // Validate UUID format
@@ -324,11 +313,6 @@ export async function DELETE(
     const { authorized, error } = await requirePermission(PERMISSIONS.TENANTS_DELETE)
     if (!authorized) {
       return NextResponse.json({ error }, { status: 403 })
-    }
-
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const tenantId = params.id

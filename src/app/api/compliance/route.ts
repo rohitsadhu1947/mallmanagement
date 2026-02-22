@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { complianceRequirements } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
@@ -26,11 +25,6 @@ export async function GET(request: NextRequest) {
   const { authorized, error } = await requirePermission(PERMISSIONS.COMPLIANCE_VIEW)
   if (!authorized) {
     return NextResponse.json({ error }, { status: 403 })
-  }
-
-  const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {
@@ -68,11 +62,6 @@ export async function POST(request: NextRequest) {
   const { authorized, error } = await requirePermission(PERMISSIONS.COMPLIANCE_CREATE)
   if (!authorized) {
     return NextResponse.json({ error }, { status: 403 })
-  }
-
-  const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {

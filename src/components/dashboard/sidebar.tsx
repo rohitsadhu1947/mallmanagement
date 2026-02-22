@@ -25,6 +25,7 @@ import {
   Cpu,
   UserCog,
   FileSignature,
+  IndianRupee,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -113,6 +114,12 @@ const navigation = [
   {
     title: "Insights",
     items: [
+      {
+        title: "Revenue Intelligence",
+        href: "/revenue-intelligence",
+        icon: IndianRupee,
+        description: "POS data & revenue tracking",
+      },
       {
         title: "Analytics",
         href: "/analytics",

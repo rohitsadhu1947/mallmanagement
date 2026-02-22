@@ -77,20 +77,28 @@ export const authConfig: NextAuthConfig = {
     },
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
-      const isOnDashboard = nextUrl.pathname.startsWith("/dashboard")
       const isOnAuth = nextUrl.pathname.startsWith("/auth")
+      const isPublicPath = nextUrl.pathname === "/" ||
+        nextUrl.pathname.startsWith("/api/auth") ||
+        nextUrl.pathname.startsWith("/api/health") ||
+        nextUrl.pathname.startsWith("/pos-simulator") ||
+        nextUrl.pathname.startsWith("/api/pos/simulator") ||
+        nextUrl.pathname.startsWith("/_next") ||
+        nextUrl.pathname === "/favicon.ico"
 
-      if (isOnDashboard) {
-        if (isLoggedIn) return true
-        return false // Redirect to login
-      }
+      // Allow public paths
+      if (isPublicPath) return true
 
+      // Redirect logged-in users away from auth pages
       if (isOnAuth) {
         if (isLoggedIn) {
           return Response.redirect(new URL("/dashboard", nextUrl))
         }
         return true
       }
+
+      // Protect everything else — must be logged in
+      if (!isLoggedIn) return false
 
       return true
     },
