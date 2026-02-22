@@ -223,30 +223,30 @@ export default function TenantsPage() {
     },
   })
 
-  // Fetch properties from API
+  // Fetch properties from API (always fresh data)
   const fetchProperties = React.useCallback(async () => {
     try {
-      const response = await fetch("/api/properties")
+      const response = await fetch("/api/properties?refresh=true")
       if (response.ok) {
         const data = await response.json()
-        if (data.data && data.data.length > 0) {
-          setProperties(data.data)
-          // Set default property if not already set
-          if (data.data.length > 0 && !createForm.getValues("propertyId")) {
-            createForm.setValue("propertyId", data.data[0].id)
-          }
+        const propList = data.data || []
+        setProperties(propList)
+        // Set default property to globally selected property, or first in list
+        if (propList.length > 0 && !createForm.getValues("propertyId")) {
+          const defaultId = selectedProperty?.id || propList[0].id
+          createForm.setValue("propertyId", defaultId)
         }
       }
     } catch (error) {
       console.error("Error fetching properties:", error)
     }
-  }, [createForm])
+  }, [createForm, selectedProperty])
 
   // Fetch tenants from API - filtered by selected property
   const fetchTenants = React.useCallback(async () => {
     setIsLoading(true)
     try {
-      const url = selectedProperty 
+      const url = selectedProperty
         ? `/api/tenants?propertyId=${selectedProperty.id}`
         : "/api/tenants"
       const response = await fetch(url)
@@ -264,19 +264,12 @@ export default function TenantsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, selectedProperty])
 
   React.useEffect(() => {
     fetchTenants()
     fetchProperties()
   }, [fetchTenants, fetchProperties])
-
-  // Re-fetch tenants when selected property changes
-  React.useEffect(() => {
-    if (selectedProperty) {
-      fetchTenants()
-    }
-  }, [selectedProperty, fetchTenants])
 
   // Handle form submission for create
   const handleSubmit = async (data: TenantFormData) => {
@@ -598,7 +591,7 @@ export default function TenantsPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Category</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value || ""}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select category" />
@@ -629,7 +622,7 @@ export default function TenantsPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Business Type</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value || ""}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select type" />
@@ -1510,7 +1503,7 @@ export default function TenantsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Category</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select category" />

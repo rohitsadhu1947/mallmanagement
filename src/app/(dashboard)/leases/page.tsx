@@ -244,10 +244,10 @@ export default function LeasesPage() {
     }
   }, [])
 
-  // Fetch properties for dropdown
+  // Fetch properties for dropdown (always fresh data)
   const fetchProperties = React.useCallback(async () => {
     try {
-      const response = await fetch("/api/properties")
+      const response = await fetch("/api/properties?refresh=true")
       if (response.ok) {
         const result = await response.json()
         setProperties(result.data || result || [])

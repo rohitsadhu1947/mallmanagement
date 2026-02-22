@@ -70,15 +70,16 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { 
-  propertySchema, 
-  propertyUpdateSchema, 
-  type PropertyFormData, 
+import {
+  propertySchema,
+  propertyUpdateSchema,
+  type PropertyFormData,
   type PropertyUpdateFormData,
   COMMON_AMENITIES,
   INDIAN_STATES,
   DAYS_OF_WEEK,
 } from "@/lib/validations/property"
+import { usePropertyStore } from "@/stores/property-store"
 
 interface Property {
   id: string
@@ -229,6 +230,7 @@ function PropertyCard({ property, onEdit }: { property: Property; onEdit: (prope
 export default function PropertiesPage() {
   const { toast } = useToast()
   const router = useRouter()
+  const { fetchProperties: refreshGlobalPropertyStore } = usePropertyStore()
   const [properties, setProperties] = React.useState<Property[]>([])
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(true)
@@ -400,7 +402,7 @@ export default function PropertiesPage() {
       setEditDialogOpen(false)
       setSelectedProperty(null)
       setEditActiveTab("basic")
-      fetchProperties()
+      fetchProperties(true)
     } catch (error) {
       console.error("Error updating property:", error)
       toast({
@@ -413,15 +415,16 @@ export default function PropertiesPage() {
     }
   }
 
-  const fetchProperties = React.useCallback(async () => {
+  const fetchProperties = React.useCallback(async (bustCache = false) => {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/properties")
+      const url = bustCache ? "/api/properties?refresh=true" : "/api/properties"
+      const response = await fetch(url)
       if (response.ok) {
         const data = await response.json()
-        if (data.data && data.data.length > 0) {
-          setProperties(data.data)
-        }
+        setProperties(data.data || [])
+        // Also update the global property store so the header dropdown refreshes
+        refreshGlobalPropertyStore()
       }
     } catch (error) {
       console.error("Error fetching properties:", error)
@@ -433,7 +436,7 @@ export default function PropertiesPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, refreshGlobalPropertyStore])
 
   React.useEffect(() => {
     fetchProperties()
@@ -490,7 +493,7 @@ export default function PropertiesPage() {
       setDialogOpen(false)
       createForm.reset()
       setActiveTab("basic")
-      fetchProperties()
+      fetchProperties(true)
     } catch (error) {
       console.error("Error creating property:", error)
       toast({
@@ -533,7 +536,7 @@ export default function PropertiesPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchProperties} disabled={isLoading}>
+          <Button variant="outline" onClick={() => fetchProperties(true)} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>

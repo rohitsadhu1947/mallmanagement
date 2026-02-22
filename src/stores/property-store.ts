@@ -43,7 +43,7 @@ export const usePropertyStore = create<PropertyState>()(
       fetchProperties: async () => {
         set({ isLoading: true, error: null })
         try {
-          const response = await fetch("/api/properties")
+          const response = await fetch("/api/properties?refresh=true")
           if (!response.ok) {
             throw new Error("Failed to fetch properties")
           }

@@ -176,7 +176,11 @@ export async function POST(request: NextRequest) {
       .returning()
 
     // Invalidate property list cache after creating new property
-    await invalidateEntityCache("property", newProperty.id, validOrgId || "all")
+    // Always invalidate the "all" cache (used when no orgId filter is passed in GET)
+    await invalidateEntityCache("property", newProperty.id, "all")
+    if (validOrgId) {
+      await invalidateEntityCache("property", newProperty.id, validOrgId)
+    }
 
     return NextResponse.json({ success: true, data: newProperty }, { status: 201 })
   } catch (error) {
