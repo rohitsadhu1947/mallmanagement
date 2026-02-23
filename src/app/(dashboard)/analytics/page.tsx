@@ -22,8 +22,26 @@ import {
   Footprints,
   Target,
   BarChart3,
+  Users,
+  FileText,
+  Loader2,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
+import { usePropertyStore } from "@/stores/property-store"
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 
 function EmptyChartState({ title, description }: { title: string; description: string }) {
   return (
@@ -79,15 +97,135 @@ function MetricCard({
   )
 }
 
-export default function AnalyticsPage() {
-  const [timeRange, setTimeRange] = React.useState("6m")
-  const [isRefreshing, setIsRefreshing] = React.useState(false)
+const CATEGORY_COLORS: Record<string, string> = {
+  fashion: "#ec4899",
+  food_beverage: "#f97316",
+  electronics: "#3b82f6",
+  entertainment: "#a855f7",
+  services: "#22c55e",
+  health_beauty: "#14b8a6",
+  home_lifestyle: "#eab308",
+  jewelry: "#f43f5e",
+  sports: "#6366f1",
+  books_stationery: "#64748b",
+}
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsRefreshing(false)
+const CATEGORY_LABELS: Record<string, string> = {
+  fashion: "Fashion",
+  food_beverage: "F&B",
+  electronics: "Electronics",
+  entertainment: "Entertainment",
+  services: "Services",
+  health_beauty: "Health & Beauty",
+  home_lifestyle: "Home & Lifestyle",
+  jewelry: "Jewelry",
+  sports: "Sports",
+  books_stationery: "Books",
+}
+
+const TIME_RANGE_TO_DAYS: Record<string, number> = {
+  "7d": 7,
+  "30d": 30,
+  "3m": 90,
+  "6m": 180,
+  "1y": 365,
+}
+
+interface AnalyticsData {
+  revenue: {
+    total: number
+    trend: number
+    dailyChart: { date: string; grossSales: number; transactions: number }[]
   }
+  tenants: {
+    total: number
+    byCategory: { category: string; count: number }[]
+  }
+  leases: {
+    total: number
+    active: number
+    occupancyRate: number
+  }
+  posConnected: number
+  totalTransactions: number
+}
+
+export default function AnalyticsPage() {
+  const [timeRange, setTimeRange] = React.useState("30d")
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [data, setData] = React.useState<AnalyticsData | null>(null)
+  const { selectedProperty } = usePropertyStore()
+
+  const fetchData = React.useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const days = TIME_RANGE_TO_DAYS[timeRange] || 30
+      const propParam = selectedProperty ? `&propertyId=${selectedProperty.id}` : ""
+
+      // Fetch revenue intelligence data and tenant/lease counts in parallel
+      const [revRes, tenantsRes, leasesRes] = await Promise.all([
+        fetch(`/api/revenue-intelligence?period=${days}${propParam}`),
+        fetch(`/api/tenants${selectedProperty ? `?propertyId=${selectedProperty.id}` : ""}`),
+        fetch(`/api/leases${selectedProperty ? `?propertyId=${selectedProperty.id}` : ""}`),
+      ])
+
+      const revData = revRes.ok ? await revRes.json() : null
+      const tenantsData = tenantsRes.ok ? await tenantsRes.json() : null
+      const leasesData = leasesRes.ok ? await leasesRes.json() : null
+
+      const tenantsList = tenantsData?.data || tenantsData || []
+      const leasesList = leasesData?.data || leasesData || []
+      const activeLeases = leasesList.filter((l: any) => l.status === "active")
+
+      // Category distribution from tenants
+      const catMap: Record<string, number> = {}
+      tenantsList.forEach((t: any) => {
+        const cat = t.category || "other"
+        catMap[cat] = (catMap[cat] || 0) + 1
+      })
+      const byCategory = Object.entries(catMap).map(([category, count]) => ({ category, count }))
+
+      const revStats = revData?.data?.stats
+      const totalRevenue = revStats?.totalPOSRevenue || 0
+      const revTrend = revStats?.revenueTrend || 0
+      const dailyChart = revData?.data?.dailyChart || []
+      const connectedStores = revStats?.connectedStores || 0
+
+      // Total transactions from tenant data
+      const tenantRevData = revData?.data?.tenants || []
+      const totalTxn = tenantRevData.reduce((sum: number, t: any) => sum + (t.totalTransactions || 0), 0)
+
+      setData({
+        revenue: {
+          total: totalRevenue,
+          trend: revTrend,
+          dailyChart,
+        },
+        tenants: {
+          total: tenantsList.length,
+          byCategory,
+        },
+        leases: {
+          total: leasesList.length,
+          active: activeLeases.length,
+          occupancyRate: leasesList.length > 0 ? Math.round((activeLeases.length / leasesList.length) * 100) : 0,
+        },
+        posConnected: connectedStores,
+        totalTransactions: totalTxn,
+      })
+    } catch (error) {
+      console.error("Error fetching analytics:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [timeRange, selectedProperty])
+
+  React.useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const revTrend = data?.revenue.trend || 0
+  const revTrendDir: "up" | "down" | "neutral" = revTrend > 0 ? "up" : revTrend < 0 ? "down" : "neutral"
 
   return (
     <div className="space-y-6 p-6">
@@ -113,8 +251,8 @@ export default function AnalyticsPage() {
               <SelectItem value="1y">Last year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2" onClick={handleRefresh}>
-            <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+          <Button variant="outline" className="gap-2" onClick={fetchData} disabled={isLoading}>
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
             Refresh
           </Button>
           <Button variant="outline" className="gap-2">
@@ -124,135 +262,303 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          title="Total Revenue"
-          value="--"
-          change="--"
-          trend="neutral"
-          icon={DollarSign}
-          subtitle="No data yet"
-        />
-        <MetricCard
-          title="Occupancy Rate"
-          value="--"
-          change="--"
-          trend="neutral"
-          icon={Building2}
-          subtitle="No data yet"
-        />
-        <MetricCard
-          title="Foot Traffic"
-          value="--"
-          change="--"
-          trend="neutral"
-          icon={Footprints}
-          subtitle="No data yet"
-        />
-        <MetricCard
-          title="Collection Rate"
-          value="--"
-          change="--"
-          trend="neutral"
-          icon={Target}
-          subtitle="No data yet"
-        />
-      </div>
-
-      {/* Charts Row 1 */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Revenue Trend */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Trend</CardTitle>
-            <CardDescription>Monthly revenue, expenses, and profit</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EmptyChartState
-              title="No revenue data yet"
-              description="Connect tenants and POS systems to see revenue trends here"
+      {isLoading && !data ? (
+        <div className="flex h-[400px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              title="Total POS Revenue"
+              value={data ? formatCurrency(data.revenue.total) : "--"}
+              change={data ? `${revTrend > 0 ? "+" : ""}${revTrend}%` : "--"}
+              trend={revTrendDir}
+              icon={DollarSign}
+              subtitle={data ? `${data.posConnected} POS connected` : ""}
             />
-          </CardContent>
-        </Card>
-
-        {/* Occupancy Trend */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Occupancy Trend</CardTitle>
-            <CardDescription>Actual vs target occupancy rate</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EmptyChartState
-              title="No occupancy data yet"
-              description="Add properties and leases to track occupancy over time"
+            <MetricCard
+              title="Active Leases"
+              value={data ? `${data.leases.active}` : "--"}
+              change={data ? `${data.leases.occupancyRate}%` : "--"}
+              trend={data && data.leases.occupancyRate > 70 ? "up" : "neutral"}
+              icon={Building2}
+              subtitle={data ? `${data.leases.total} total leases` : ""}
             />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Row 2 */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Foot Traffic */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Weekly Foot Traffic</CardTitle>
-            <CardDescription>Daily visitor count compared to last week</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EmptyChartState
-              title="No foot traffic data yet"
-              description="Integrate foot traffic sensors or POS systems to track visitor counts"
+            <MetricCard
+              title="Tenants"
+              value={data ? `${data.tenants.total}` : "--"}
+              change={data ? `${data.tenants.byCategory.length} categories` : "--"}
+              trend="neutral"
+              icon={Users}
+              subtitle={selectedProperty ? selectedProperty.name : "All properties"}
             />
-          </CardContent>
-        </Card>
-
-        {/* Tenant Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tenant Categories</CardTitle>
-            <CardDescription>Distribution by business type</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EmptyChartState
-              title="No tenant data yet"
-              description="Add tenants and assign categories to see distribution"
+            <MetricCard
+              title="Transactions"
+              value={data ? `${data.totalTransactions.toLocaleString()}` : "--"}
+              change={data && data.totalTransactions > 0 ? "Live" : "--"}
+              trend={data && data.totalTransactions > 0 ? "up" : "neutral"}
+              icon={Target}
+              subtitle="POS verified"
             />
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      {/* Charts Row 3 */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Work Order Analytics */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Maintenance Analytics</CardTitle>
-            <CardDescription>Work order status by category</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EmptyChartState
-              title="No maintenance data yet"
-              description="Create work orders to see maintenance analytics by category"
-            />
-          </CardContent>
-        </Card>
+          {/* Charts Row 1 */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Revenue Trend */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue Trend</CardTitle>
+                <CardDescription>Daily POS-verified gross sales</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data && data.revenue.dailyChart.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={data.revenue.dailyChart}>
+                      <defs>
+                        <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(d) => {
+                          const date = new Date(d)
+                          return `${date.getDate()}/${date.getMonth() + 1}`
+                        }}
+                        className="text-xs"
+                      />
+                      <YAxis
+                        tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                        className="text-xs"
+                      />
+                      <Tooltip
+                        formatter={(value: number) => [formatCurrency(value), "Revenue"]}
+                        labelFormatter={(d) => new Date(d).toLocaleDateString()}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="grossSales"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        fill="url(#revenueGradient)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <EmptyChartState
+                    title="No revenue data yet"
+                    description="Connect tenants and POS systems to see revenue trends here"
+                  />
+                )}
+              </CardContent>
+            </Card>
 
-        {/* AI Agent Performance */}
-        <Card>
-          <CardHeader>
-            <CardTitle>AI Agent Performance</CardTitle>
-            <CardDescription>Agent actions and success rates</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EmptyChartState
-              title="No agent activity yet"
-              description="AI agents will show performance metrics once they begin processing tasks"
-            />
-          </CardContent>
-        </Card>
-      </div>
+            {/* Transactions Trend */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Daily Transactions</CardTitle>
+                <CardDescription>POS transaction volume over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data && data.revenue.dailyChart.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={data.revenue.dailyChart}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(d) => {
+                          const date = new Date(d)
+                          return `${date.getDate()}/${date.getMonth() + 1}`
+                        }}
+                        className="text-xs"
+                      />
+                      <YAxis className="text-xs" />
+                      <Tooltip
+                        formatter={(value: number) => [value, "Transactions"]}
+                        labelFormatter={(d) => new Date(d).toLocaleDateString()}
+                      />
+                      <Bar dataKey="transactions" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <EmptyChartState
+                    title="No transaction data yet"
+                    description="Add properties and leases to track transactions over time"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts Row 2 */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* Revenue by Tenant */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Revenue by Tenant</CardTitle>
+                <CardDescription>POS-verified revenue per connected tenant</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data && data.revenue.total > 0 ? (
+                  <div className="space-y-3">
+                    {(data as any)._tenantRevenue?.map((t: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-3 w-3 rounded-full" style={{ backgroundColor: Object.values(CATEGORY_COLORS)[i % Object.values(CATEGORY_COLORS).length] }} />
+                          <span className="text-sm font-medium">{t.name}</span>
+                        </div>
+                        <span className="text-sm font-bold">{formatCurrency(t.grossSales)}</span>
+                      </div>
+                    )) || (
+                      <p className="text-sm text-muted-foreground">Revenue data available on Revenue Intelligence page</p>
+                    )}
+                  </div>
+                ) : (
+                  <EmptyChartState
+                    title="No revenue data yet"
+                    description="Connect POS systems to see revenue breakdown by tenant"
+                  />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Tenant Distribution */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Tenant Categories</CardTitle>
+                <CardDescription>Distribution by business type</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data && data.tenants.byCategory.length > 0 ? (
+                  <div className="flex flex-col items-center">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={data.tenants.byCategory}
+                          dataKey="count"
+                          nameKey="category"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          innerRadius={40}
+                        >
+                          {data.tenants.byCategory.map((entry, i) => (
+                            <Cell
+                              key={entry.category}
+                              fill={CATEGORY_COLORS[entry.category] || "#94a3b8"}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number, name: string) => [
+                            value,
+                            CATEGORY_LABELS[name] || name,
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-2 flex flex-wrap justify-center gap-2">
+                      {data.tenants.byCategory.map((entry) => (
+                        <div key={entry.category} className="flex items-center gap-1 text-xs">
+                          <div
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: CATEGORY_COLORS[entry.category] || "#94a3b8" }}
+                          />
+                          <span>{CATEGORY_LABELS[entry.category] || entry.category}</span>
+                          <span className="text-muted-foreground">({entry.count})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyChartState
+                    title="No tenant data yet"
+                    description="Add tenants and assign categories to see distribution"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Summary Row */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Lease Overview</CardTitle>
+                <CardDescription>Current lease status breakdown</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data && data.leases.total > 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Active Leases</span>
+                      <span className="text-lg font-bold text-emerald-600">{data.leases.active}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Leases</span>
+                      <span className="text-lg font-bold">{data.leases.total}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Occupancy Rate</span>
+                      <span className="text-lg font-bold">{data.leases.occupancyRate}%</span>
+                    </div>
+                    <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+                        style={{ width: `${data.leases.occupancyRate}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyChartState
+                    title="No lease data yet"
+                    description="Create leases to see occupancy metrics"
+                  />
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>POS Integration Status</CardTitle>
+                <CardDescription>Point of Sale system connections</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Connected Stores</span>
+                      <span className="text-lg font-bold text-emerald-600">{data.posConnected}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total POS Revenue</span>
+                      <span className="text-lg font-bold">{formatCurrency(data.revenue.total)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Transactions</span>
+                      <span className="text-lg font-bold">{data.totalTransactions.toLocaleString()}</span>
+                    </div>
+                    {data.posConnected > 0 && (
+                      <Badge variant="success" className="mt-2">
+                        Live POS Data
+                      </Badge>
+                    )}
+                  </div>
+                ) : (
+                  <EmptyChartState
+                    title="No POS data yet"
+                    description="Connect POS systems to see integration status"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   )
 }
-
